@@ -11,8 +11,7 @@ options(scipen = 99)
 
 #NOTES
 #we need to come up with a better sparsity preserving generation distribution
-#during the replacement step we are removing sparsity, we need to figure out how to preserve it there..
-#I think this is why we aren't getting divergence
+#need to deal with averaging effect somehow
 
 #--------------------------------#
 #-----BIG BLOCK OF FUNCTIONS-----#
@@ -25,33 +24,55 @@ options(scipen = 99)
 #numcom = the number of communities in total
 #abund_microbe =the maximum abundance of a microbe
 
-generate = function(indiv, m, numcom, abund_microbe){
+generateDiff = function(indiv, m, numcom, abund_microbe){
   x = list()
   y = list()
   for(j in 1:numcom){
 		for(i in 1:indiv){
-			#generate random values for microbial abundance using a uniform prob. distribution
-		 # y[[i]] = round(runif(m, 0, abund_microbe)) 
+			# generate random values for microbial abundance using a uniform prob. distribution
+		 y[[i]] = round(runif(m, 0, abund_microbe)) 
 		  
-		  #tried with a Zero-inflated Poisson to generate sparse data more like real life
-		  #this isn't quite right, because the max values are too low
+		  # tried with a Zero-inflated Poisson to generate sparse data more like real life
+		  # this isn't quite right, because the max values are too low
 		  # I am not sure what the best distribution is to use here, we will have to figure that out.
-		  #I thought about using a "Dirichlet process" algorithm here....
-		  #I think we will need to think about how best to do this and perhaps consult the literature
-		  #to see what sorts of distributions people have used to model microbial data
-		   y[[i]] = rzipois(m, lambda = 1, pstr0 = .5)*abund_microbe
+		  # I thought about using a "Dirichlet process" algorithm here....
+		  # I think we will need to think about how best to do this and perhaps consult the literature
+		  # to see what sorts of distributions people have used to model microbial data
 		  
-		  x[[j]] = y
+		  #y[[i]] = rzipois(m, lambda = 1, pstr0 = .5)*abund_microbe
+		  
+		  y[[i]] = 	   round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
 		}
+		 x[[j]] = y
   }
 	return(x)
 }
+
+#generate with identical values for all individuals in all communities
+
+generateSame = function(indiv, m, numcom, abund_microbe){
+  x = list()
+  y = list()
+  
+  hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
+  for(j in 1:numcom){
+		for(i in 1:indiv){
+			y[[i]] = hostzero
+		}
+		 x[[j]] = y
+
+  }
+	return(x)
+}
+
+
+
 
 #function to do dirichlet/other replacement of individuals with new microbes
 #Parameters are: 
 #community = a list representing a community that we are replacing individuals inside
 
-#community = sandbox
+community = sandbox
 replacement = function(community){  	
   	
   		#choose a community to replace
@@ -74,8 +95,8 @@ replacement = function(community){
 	  #I think we may have to use much larger numbers for this function to work right
 	  community[[replaced_comm]][[replaced]] = round(rdirichlet(1, dirichletVector)*(abund_microbe))
 
-	  #was experimenting
-	  #community[[replaced_comm]][[replaced]] = 	round(dirichletVector*(abund_microbe))
+#TEST
+#community[[replaced_comm]][[replaced]] = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
 	 
 	  # print(replaced_comm)
 	  # print(replaced)
@@ -106,7 +127,7 @@ model = function(sandbox){
   	k=1
     repeat{
     	print(k)
-    	sandbox = replacement(sandbox) #not overwriting was leading to lack of divergence I think
+    	sandbox = replacement(sandbox) 
     	k=k+1
     	if( (k >= z)){
     		break
@@ -118,7 +139,7 @@ model = function(sandbox){
     for(i in 1:length(sandbox)){
         for(j in 1:length(sandbox)){
           if(i != j){
-            div[k] = divergence(sandbox[[i]],sandbox[[j]], "euclidean")
+            div[k] = divergence(sandbox[[i]],sandbox[[j]], "bray")
             k=k+1
           }else{next}
         }
@@ -126,7 +147,7 @@ model = function(sandbox){
       #outputs average divergence in ascending order
       divOut[length(divOut)+1] = mean(div)
     }
-  return(divOut)
+  return(list(divOut, sandbox))
 }
 
 
@@ -139,25 +160,31 @@ model = function(sandbox){
 communities = 10
 individuals = 10
 microbes = 100
-steps = 100  #might be able to do away with this one, perhaps
 abund_microbe = 1000	
-#points at which we calculate the divergence
-#MUST BE IN ASCENDING ORDER
-#plotpoints=list(100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000)
 
-#here is a trick for making sequences, we could use this to make arbitrary break points as needed
-plotpoints = seq(from = 10, to = 50, by=20)
+
+#points at which we calculate the divergence
+plotpoints = seq(from = 10, to = 100, by=20)
 
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
 
-sandbox = generate(individuals, microbes, communities, abund_microbe)
+sandbox = generateSame(individuals, microbes, communities, abund_microbe)
+#sandbox = generateDiff(individuals, microbes, communities, abund_microbe)
+
+#save original communities
 sandbox_original = sandbox
 
+#save communities post running model
+out = model(sandbox)
 
-plot(plotpoints,model(sandbox))
+#plot divergence versus time
+plot(plotpoints, out[[1]], ylab="Divergence", xlab = "Time step")
 
-#for multipanel plots check out the par
-#par(mfrow=c(2,2))
-#plot(x,y)
+# #compare two communities pre and post run, they changed markedly
+ # sandbox_original[[10]][[10]]
+ # out[[2]][[10]][[10]]
+
+
+
