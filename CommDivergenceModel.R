@@ -9,10 +9,6 @@ library(VGAM)
 set.seed(14567)
 options(scipen = 99)
 
-#NOTES
-#we need to come up with a better sparsity preserving generation distribution
-#need to deal with averaging effect somehow
-
 #--------------------------------#
 #-----BIG BLOCK OF FUNCTIONS-----#
 #--------------------------------#
@@ -151,6 +147,36 @@ model = function(sandbox){
 }
 
 
+dirichletprocess = function(H, parameter){
+  #INPUTS
+  #------
+  #H is the probability base distribution ( we shall have it be the zero inflated poisson)
+  #parameter is the scaling parameter, when it is larger there is a higher probability of sitting at a new table...adding a draw to a different microbe. When lower, more likely to add draw to most abundant microbe
+  #RUN IT ON COMMUNITIES NOT THE WHOLE SANDBOX
+  #inspired by this article (https://en.wikipedia.org/wiki/Dirichlet_process)
+  D=NA
+  #n = 1
+  # #choose a individual to set the first item as
+  # pick=round(runif(1, 1, length(H)))
+  # D[[1]]=H[[pick]]
+  
+  #n > 1
+  for (i in 1:length(H)){
+  	D[[i]]=0
+  	#sit at new table; slash a new microbe is born....new element in vector
+    if(runif(1, 0,1)< (parameter/(parameter+i-1))){
+      #draw xn from h
+      pick=round(runif(1, 1, length(H)))
+      D[[i]]=H[[pick]]  
+    }
+    #add to an existing vector...assign the next read to a preexisting microbe
+      else if(runif(1, 0,1)< (H[[i]]/(parameter+i-1))){
+      D[[i]] = H[[i]] +1 
+      
+    }
+  }
+  return(D)
+}
 
 
 #----------------------------------#
