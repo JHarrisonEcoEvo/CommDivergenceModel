@@ -46,17 +46,24 @@ options(scipen = 99)
 
 #generate with identical values for all individuals in all communities
 
-generateSame = function(indiv, m, numcom, abund_microbe){
+generateSame = function(indiv, m, numcom, abund_microbe,parameter , iterations){
   x = list()
   y = list()
   
   for(j in 1:numcom){
     hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
+    for(k in 1:iterations){
+      H = hostzero
+      hostzero = dirichletprocess(H, parameter)
+    }
 		for(i in 1:indiv){
 			y[[i]] = hostzero
 		}
 		 x[[j]] = y
   }
+
+  
+  
 	return(x)
 }
 
@@ -190,17 +197,18 @@ model = function(sandbox){
 communities = 10
 individuals = 100
 microbes = 1000
-abund_microbe = 10000	
-
+abund_microbe = 10000
+parameter = .5
+iterations = 5
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 10, to = 2000, by=200)
+plotpoints = seq(from = 10, to = 2000000, by=20000)
 
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
 
-sandbox = generateSame(individuals, microbes, communities, abund_microbe)
+sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter, iterations)
 #sandbox = generateDiff(individuals, microbes, communities, abund_microbe)
 
 #save original communities
