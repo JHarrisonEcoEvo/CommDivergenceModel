@@ -1,3 +1,19 @@
+#try modeling real data using a D. process...to extract alpha parameter
+#figure out how to fit this, and get parameter....
+
+#Josh
+#run model forever to make sure smart function works
+#generate diff - should we pursue?
+#think about adding dispersal
+
+
+#David
+#make a multi-panel plot for model output using varying initial parameters (including the DIrichlet parameter)
+#focus D parameter, and number of microbes
+#lookinto plotting
+
+
+
 # install.packages("MCMCpack")
 # install.packages("ecodist")
 # install.packages("VGAM")
@@ -32,9 +48,10 @@ options(scipen = 99)
 #generate with identical values for all individuals in all communities
 
 #for debugging
-#m = microbes
+# m = 5
+# abund_microbe
 
-generateSame = function(indiv, m, numcom, abund_microbe,iterations,parameter){
+generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
   x = list()
   y = list()
   
@@ -42,130 +59,107 @@ generateSame = function(indiv, m, numcom, abund_microbe,iterations,parameter){
   #inside loops call the Dirichlet process, and then assign it to all individuals in a community y, which is a list element in x the meta-community
   
   for(j in 1:numcom){
-  	
-  	#pstr0 is the probability of a structural zero, so higher numbers result in sparser data
-   # hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
     
-    for(k in iterations){
-    	Hout = 	dirichletprocess(m, abund_microbe, parameter)
+    #pstr0 is the probability of a structural zero, so higher numbers result in sparser data
+    # hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
+    
+    Hout = 	dirichletprocess(microbes, abund_microbe, parameter)
+    
+    for(i in 1:indiv){
+      y[[i]] = Hout
     }
-	for(i in 1:indiv){
-		y[[i]] = Hout
-	}
-	
-	#assign new community to a list element in the meta-community
-	x[[j]] = y
-		 	 
+    
+    #assign new community to a list element in the meta-community
+    x[[j]] = y
+    
   }
-	return(x)
+  return(x)
 }
 
 
 generateDiff = function(indiv, m, numcom, abund_microbe,iterations,parameter){
-	  x = list()
-  	  y = list()
+  x = list()
+  y = list()
   for(j in 1:numcom){
-  	for(i in 1:indiv){
-	  	hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
-	
-	    for(k in iterations){
-	    	Hout = 	dirichletprocess(hostzero,parameter)
-	    	hostzero=Hout
-	    }	
-		y[[i]] = Hout
-	}
-	x[[j]] = y	 
+    for(i in 1:indiv){
+      hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
+      
+      for(k in iterations){
+        Hout = 	dirichletprocess(hostzero,parameter)
+        hostzero=Hout
+      }	
+      y[[i]] = Hout
+    }
+    x[[j]] = y	 
   }
-	return(x)
+  return(x)
 }
 
 
 #Function to build microbial communities using a Dirichlet process
-#	H is the probability base distribution ( we shall have it be the zero inflated poisson)
-#	parameter is the scaling parameter, when it is larger there is a higher probability of sitting at a new table...adding a draw to a different microbe. When lower, more likely to add draw to most abundant microbe
 #inspired by this article (https://en.wikipedia.org/wiki/Dirichlet_process)
 
-#parameters are m = the number of microbial taxa, abund_microbe = summed abundance of microbes, paramter = conc. parameter.
-#these are inherited from the generateSame function
+#parameters inherited from the generateSame function are:
+#				m = the number of microbial taxa, 
+#				abund_microbe = summed abundance of microbes, paramter = conc. parameter.
 
-
+# m=100
+# abund_microbe = 1000
+# parameter=10
 dirichletprocess = function( m, abund_microbe, parameter){
-	
-	#define concentration parameter
-  	alpha = parameter
-  	
-  	#Make a uniform probability distribution of the same length as the number of microbes
-  	H = rep(1/m, m)
-
-	#Make a vector for the new community we are building. 
-	  #Its length is determined by the length of the input distribution
-	  D = vector(mode="numeric", length= length(H))
-	  
-	  #Make a vector of probabilities from the input distribution (H). 
-	  #take the maximum value of this vector and assign a one to the corresponding position in D
-	  
-	  newH  = as.vector(rdirichlet(1,H))
-	  D[which(newH == max(newH))] = 1
-	  
-	  for(i in 1:length(H)){
-		  newMicrobe = alpha/(alpha + i-1)
-		  oldMicrobe = D/(alpha + i-1)
-		  
-		  #As a reminder, the above sum to 1, so it works for a probability distribution. 
-		  #sum(newMicrobe, oldMicrobe)
-		  
-		  #bind those vectors together and sample that Dirichlet distribution
-		  dir_draws = rdirichlet(1,append(oldMicrobe, newMicrobe))
-		  
-		  #find max of the draws again. If the max element is a previously present microbe add 1 to its abundance, if not, then randomly add 1 to a previously unobserved microbe. 
-		  MicrobeIncreasing = which(dir_draws == max(as.vector(dir_draws)))
-		  
-		  #This conditional works on what element of MicrobeIncreasing is greatest. This is the microbe getting an additional
-		  #read. If the element chosen is the last element in dir_draws, then it means we need to assign a 1 to a new
-		  #element in D that was previously 0. A new microbe is now being observed. If the element chosen is NOT
-		  #the last element, then we add one to a previously observed microbe
-		  
-		  if(MicrobeIncreasing == (1+length(H))){
-		  	D[sample(which(D == 0),1)] = 1
-		  }else{
-		  	D[MicrobeIncreasing] = D[MicrobeIncreasing] + 1	
-		  }
-	  }
-	  return(D)
+  
+  #define concentration parameter
+  alpha = parameter
+  
+  #Make a uniform probability distribution of the same length as the number of microbes
+  H = rep(1/m, m)
+  
+  #Make a vector for the new community we are building. 
+  #Its length is determined by the length of the input distribution
+  D = vector(mode="numeric", length= length(H))
+  
+  #Make a vector of probabilities from the input distribution (H). 
+  #take the maximum value of this vector and assign a one to the corresponding position in D
+  #This adds a one to a random microbe to start the community
+  newH  = as.vector(rdirichlet(1,H))
+  D[which(newH == max(newH))] = 1
+  
+  #Run the process for time specified by "abund_microbe"
+  #Abund_microbe is the maximum abundance of any given microbe.
+  #this implements the Dirichlet process on D, building the comm. for the number of steps specified by "abund_microbe"
+  
+  for(i in 1:abund_microbe){
+    newMicrobe = alpha/(alpha + i-1)
+    oldMicrobe = D/(alpha + i-1)
+    
+    #As a reminder, the above sum to 1, so it works for a probability distribution. 
+    #sum(newMicrobe, oldMicrobe)
+    
+    #bind those vectors together and sample that Dirichlet distribution
+    dir_draws = rdirichlet(1,append(oldMicrobe, newMicrobe))
+    
+    #find max of the draws again. If the max element is a previously present microbe add 1 to its abundance, if not, then randomly add 1 to a previously unobserved microbe. 
+    MicrobeIncreasing = which(dir_draws == max(as.vector(dir_draws)))
+    
+    #This conditional works on what element of MicrobeIncreasing is greatest. This is the microbe getting an additional observation. 
+    #If the element chosen is the last element in dir_draws, then it means we need to assign a 1 to a new
+    #element in D that was previously 0. A new microbe is now being observed. If the element chosen is NOT
+    #the last element, then we add one to a previously observed microbe
+    
+    if(MicrobeIncreasing == (1+length(H))){
+    	#this adds a one to a random microbe that was previously unobserved. But, only operates if there is a
+    	#prev. unobserved microbe
+    	if(length(which(D == 0)) > 1 ){
+     		 D[sample(which(D == 0),1)] = 1
+    	}else{next}}
+    else{
+    	#add a microbe to whichever got choosen by the rdirichlet function above
+      D[MicrobeIncreasing] = D[MicrobeIncreasing] + 1	
+    	}
+  }
+  
+  return(D)
 }
- 	
-# # dirichletprocess = function(H, parameter){
-  # D=NA
-  # for (i in 1:length(H)){
-    # D[[i]]=0
-    # #sit at new table; slash a new microbe is born....new element in vector
-    
-    # #there is a problem with the first part of this conditional. It takes the value from H and dumps it into D
-    # #it should instead assign the value of 1 to that element of D, or add a 1 to whatever value was in D at that position
-    # #it should also only overwrite elements of D that equaled zero, so we need another conditional
-    # #to enforce this
-    
-    # #the runif calculates a random probability. If this value is less than 
-    # #parameter/parameter + i-1 then add a one to a random value that previously equaled zero
-    # if(runif(1, 0,1)< (parameter/(parameter+i-1))){
-      
-      # #pick a random integer from 1 through the length of the input probability distribution
-      # pick = round(runif(1, 1, length(H)))
-      
-      # #replace the 0 in D with the value from H corresponding to the randomly selected pick
-      # D[[i]] = H[[pick]]  
-    # }
-    # #add to an existing vector...assign the next read to a preexisting microbe
-    
-    # #the runif command here is redundant...because this should always run whenever we get a no from the first conditional
-    # #we also need to update H here
-    # else if(runif(1, 0,1)< (H[[i]]/(parameter+i-1))){
-      # D[[i]] = H[[i]] +1 
-      
-    # }
-  # }
-  # return(D)
-# }
 
 #function to do dirichlet/other replacement of individuals with new microbes
 #Parameters are: 
@@ -173,28 +167,27 @@ dirichletprocess = function( m, abund_microbe, parameter){
 
 #community = sandbox
 replacement = function(community){  	
-  	
-	#choose a community to replace
-  	replaced_comm=round(runif(1, 1, length(community)))
-  	
-  	#choose an individual at random to replace
-	replaced=round(runif(1, 1,individuals))
-	  
-	 #Replace individual in community with zeros to facilitate summing at next step
-	 community[[replaced_comm]][[replaced]] = rep(0,length(community[[replaced_comm]][[replaced]]))			
-	  	  
-	 #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
-	 #consider how this average calculation may affect things when lots of individuals are present
-	 dirichletVector = Reduce("+",community[[replaced_comm]])/individuals
-	  
-	 community[[replaced_comm]][[replaced]] = round(rdirichlet(1, dirichletVector)*(abund_microbe))
-
-	 return(community)
+  
+  #choose a community to replace
+  replaced_comm=round(runif(1, 1, length(community)))
+  
+  #choose an individual at random to replace
+  replaced=round(runif(1, 1,individuals))
+  
+  #Replace individual in community with zeros to facilitate summing at next step
+  community[[replaced_comm]][[replaced]] = rep(0,length(community[[replaced_comm]][[replaced]]))			
+  
+  #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
+  #consider how this average calculation may affect things when lots of individuals are present
+  dirichletVector = Reduce("+",community[[replaced_comm]])/individuals
+  
+  community[[replaced_comm]][[replaced]] = round(rdirichlet(1, dirichletVector)*(abund_microbe))
+  
+  return(community)
 }
 
 #Function to compute pairwise divergence between two communities.
-#IMPORTANT: this sums abundances across individuals from each community, it does not compute all possible pairwise differences
-#and extract an average
+#IMPORTANT: this sums abundances across individuals from each community, it does not compute all possible pairwise differences and extract an average
 
 #inputs are lists of lists
 
@@ -204,7 +197,7 @@ replacement = function(community){
 # method2 = "bray"
 divergence = function(comm1, comm2, method2){
   
-	  out = distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
+  out = distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
   
   
   #compute distance metric between two communities
@@ -219,33 +212,57 @@ divergence = function(comm1, comm2, method2){
   return(out)
 }
 
-
-model = function(sandbox){
+#changed from mode, because that was the name of an arithmatic function
+# mode1 = "smart"
+# sensitivity = 5
+# distancemetric = "bray"
+model = function(sandbox,mode1,sensitivity, distancemetric){
+  running = TRUE
   require("MCMCpack")
   #clearing output list(holds mean divergence)
   divOut = NULL
   z = max(plotpoints)
   k=0
- 	while(k<z){
-   		sandbox = replacement(sandbox) 
-    	k=k+1
-    	print(k)
-	if (k %in% plotpoints){  	
-	    div=NA
-	    m=1
-	    for(i in 1:length(sandbox)){
-	        for(j in 1:length(sandbox)){
-	          if(i != j){
-	            div[m] = divergence(sandbox[[i]],sandbox[[j]], "bray")
-	            m=m+1
-	          }else{next}
-	        }
-	     }
-	      #outputs average divergence in ascending order
-	      divOut[length(divOut)+1] = mean(div)
-	    }
+  counter = 0
+  endstep = NA
+  #if we aren't doing it the smart way, set the endstep to the max plotpoints
+  if(mode1 == "normal"){endstep = max(plotpoints)}
+  
+  while(k<z && running == TRUE){
+    sandbox = replacement(sandbox) 
+    k=k+1
+    print(k)
+    if (k %in% plotpoints){  	
+      div=NA
+      m=1
+      for(i in 1:length(sandbox)){
+        for(j in 1:length(sandbox)){
+          if(i != j){
+            div[m] = divergence(sandbox[[i]],sandbox[[j]], as.character(distancemetric))
+            
+            #First if statement resets the counter to zero if we totally diverged, then converged
+            if(div[m] != 1 && counter > 1){
+            	counter = 0
+            }else if(as.character(mode1) == "smart" && div[m] == 1){
+            			#iterate the counter if we have reached total divergence. 
+	            		counter = 1 + counter
+	            		#run until we hit sensitivity (num of steps post total divergence)
+	            		#save when total divergence happened
+	              		if(counter < sensitivity){next}else{
+	              			running = FALSE
+	              			endstep = length(div) - sensitivity
+	              		}
+	         }
+	         #this needs to be here, bc otherwise m gets iterated too soon and messes up the above conditional
+	         m=m+1
+	       }
+        }
+      }
+      #outputs average divergence in ascending order
+      divOut[length(divOut)+1] = mean(div)
     }
-  return(list(divOut, sandbox))
+  }
+  return(list(divOut, sandbox, endstep))
 }
 
 
@@ -253,31 +270,47 @@ model = function(sandbox){
 #-----VERY IMPORTANT VARIABLES-----#
 #----------------------------------#
 
+#num of communities
 communities = 10
-individuals = 2
-microbes = 1000
+
+#number of individuals in each community
+individuals = 5
+
+#number of microbe slots per individual
+microbes = 10
+
+#max amt of microbes per microbe slot 
 abund_microbe = 10000	
-parameter = 0.5
-iterations = 100
+
+#parameter for the Dirichlet function. Higher numbers create less 
+parameter = 3
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 4000, by=50)
+plotpoints = seq(from = 0, to = 10000, by=100)
 
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
 
-sandbox = generateSame(individuals, microbes, communities, abund_microbe, iterations, parameter)
+sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter)
 #sandbox = generateDiff(individuals, microbes, communities, abund_microbe, iterations, parameter)
 
 #save original communities
 sandbox_original = sandbox
 
 #save communities post running model
-out = model(sandbox)
+out = model(sandbox, "smart" ,5, "bray")
 
 #plot divergence versus time
-plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = "Time step")
+plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
 
-
+#adding output text
+print(out[[3]])
 length(out[[1]])
+
+
+pdf(file="~/Desktop/plotname.pdf", width=5, height=5)
+
+plot(plotpoints[1:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
+
+dev.off()
