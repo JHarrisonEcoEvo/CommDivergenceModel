@@ -32,7 +32,7 @@ options(scipen = 99)
 #generate with identical values for all individuals in all communities
 
 #for debugging
-m = microbes
+#m = microbes
 
 generateSame = function(indiv, m, numcom, abund_microbe,iterations,parameter){
   x = list()
@@ -171,7 +171,7 @@ dirichletprocess = function( m, abund_microbe, parameter){
 #Parameters are: 
 #community = a list representing a community that we are replacing individuals inside
 
-community = sandbox
+#community = sandbox
 replacement = function(community){  	
   	
 	#choose a community to replace
@@ -199,9 +199,9 @@ replacement = function(community){
 #inputs are lists of lists
 
 #for debugging
-comm1 = sandbox[[1]]
-comm2 = sandbox[[2]]
-method2 = "bray"
+# comm1 = sandbox[[1]]
+# comm2 = sandbox[[2]]
+# method2 = "bray"
 divergence = function(comm1, comm2, method2){
   
 	  out = distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
@@ -261,7 +261,7 @@ parameter = 0.5
 iterations = 100
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 400, by=50)
+plotpoints = seq(from = 0, to = 4000, by=50)
 
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
