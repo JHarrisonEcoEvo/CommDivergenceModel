@@ -79,23 +79,23 @@ generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
 }
 
 
-generateDiff = function(indiv, m, numcom, abund_microbe,iterations,parameter){
-  x = list()
-  y = list()
-  for(j in 1:numcom){
-    for(i in 1:indiv){
-      hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
-      
-      for(k in iterations){
-        Hout = 	dirichletprocess(hostzero,parameter)
-        hostzero=Hout
-      }	
-      y[[i]] = Hout
-    }
-    x[[j]] = y	 
-  }
-  return(x)
-}
+# generateDiff = function(indiv, m, numcom, abund_microbe,iterations,parameter){
+#   x = list()
+#   y = list()
+#   for(j in 1:numcom){
+#     for(i in 1:indiv){
+#       hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
+#       
+#       for(k in iterations){
+#         Hout = 	dirichletprocess(hostzero,parameter)
+#         hostzero=Hout
+#       }	
+#       y[[i]] = Hout
+#     }
+#     x[[j]] = y	 
+#   }
+#   return(x)
+# }
 
 
 #Function to build microbial communities using a Dirichlet process
@@ -105,7 +105,11 @@ generateDiff = function(indiv, m, numcom, abund_microbe,iterations,parameter){
 #				m = the number of microbial taxa, 
 #				abund_microbe = summed abundance of microbes, paramter = conc. parameter.
 
-dirichletprocess = function(m, abund_microbe, parameter){
+# m=100
+# abund_microbe = 1000
+# parameter=10
+
+dirichletprocess = function( m, abund_microbe, parameter){
   
   #define concentration parameter
   alpha = parameter
@@ -191,9 +195,10 @@ replacement = function(community){
 #inputs are lists of lists
 
 #for debugging
-# comm1 = sandbox[[1]]
-# comm2 = sandbox[[2]]
-# method2 = "bray"
+ # comm1 = sandbox[[1]]
+ # comm2 = sandbox[[2]]
+ # method2 = "bray"
+
 divergence = function(comm1, comm2, method2){
   
   out = distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
@@ -286,16 +291,16 @@ model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
 communities = 10
 
 #number of individuals in each community
-individuals = 5
+individuals = 100
 
 #number of microbe slots per individual
-microbes = 10
+microbes = 1000
 
 #max amt of microbes per microbe slot 
 abund_microbe = 10000	
 
 #parameter for the Dirichlet function. Higher numbers create less 
-parameter = 3
+parameter = 10
 
 #points at which we calculate the divergence
 plotpoints = seq(from = 0, to = 5700, by=100)
@@ -331,17 +336,41 @@ for (p in 1:length(parameterSet)){
 #sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter)
 #sandbox = generateDiff(individuals, microbes, communities, abund_microbe, iterations, parameter)
 
+#for single community data, can output dataframe thus
+#write.csv(file="sandbox_out.csv", data.frame(matrix(unlist(sandbox), nrow = length(sandbox[[1]]), byrow = T)))
+
 #save original communities
 #sandbox_original = sandbox
 
 #save communities post running model
-#out = model(sandbox, "smart","assume" ,5, "bray")
+
+out = model(sandbox, "normal" ,5, "bray")
 
 #plot divergence versus time
-#plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
+plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"), type="s")
 
-#adding output text
 
+#plot for several parameter values
+
+#choose parameters and colors
+params=c(0.5,5,10,30,100)
+cols = c("black", "blue", "green", "orange", "red")
+
+#make empty plot, note the ylim are pretty important to avoid just getting what looks like a straight line
+out = list()
+
+for(i in 1:length(params)){
+sandbox = generateSame(individuals, microbes, communities, abund_microbe, params[i])
+out[[i]] = model(sandbox, "normal" ,5, "bray")
+}
+
+plot(NULL, xlim=c(0,max(plotpoints)), ylim=c(0.85,1), ylab="Divergence", xlab="Time step")
+
+k=1
+for(i in 1:length(params)){
+  lines(plotpoints[2:length(plotpoints)], out[[i]][[1]], ylab="Divergence", xlab = paste("Time steps"), type="s", col = cols[k])
+  k=k+1
+}
 # pdf(file="~/Desktop/plotname.pdf", width=5, height=5)
 # 
 # plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
