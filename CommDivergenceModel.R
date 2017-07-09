@@ -103,15 +103,11 @@ generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
 #				m = the number of microbial taxa, 
 #				abund_microbe = summed abundance of microbes, paramter = conc. parameter.
 
-<<<<<<< HEAD
 # m=100
 # abund_microbe = 1000
 # parameter=10
 
 dirichletprocess = function( m, abund_microbe, parameter){
-=======
-dirichletprocess = function(m, abund_microbe, parameter){
->>>>>>> 531000d77ae4b1bc704f8609f6cb3d3530606066
   
   #define concentration parameter
   alpha = parameter
@@ -305,14 +301,9 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
-<<<<<<< HEAD
-plotpoints = seq(from = 0, to = 500000, by=1000)
-
-=======
 plotpoints = seq(from = 0, to = 570000, by=100)
 parameterSet=c(0.5,1,1.5)
 colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
->>>>>>> 531000d77ae4b1bc704f8609f6cb3d3530606066
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
@@ -355,7 +346,7 @@ for (p in 0:parameterSet){
 #sandbox_original = sandbox
 
 #save communities post running model
-<<<<<<< HEAD
+
 out = model(sandbox, "normal" ,5, "bray")
 
 #plot divergence versus time
@@ -370,14 +361,6 @@ cols = c("black", "blue", "green", "orange", "red")
 
 #make empty plot, note the ylim are pretty important to avoid just getting what looks like a straight line
 out = list()
-=======
-#out = model(sandbox, "smart","assume" ,5, "bray")
-
-#plot divergence versus time
-#plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
-
-#adding output text
->>>>>>> 531000d77ae4b1bc704f8609f6cb3d3530606066
 
 for(i in 1:length(params)){
 sandbox = generateSame(individuals, microbes, communities, abund_microbe, params[i])
