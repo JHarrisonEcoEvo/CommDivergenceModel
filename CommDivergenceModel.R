@@ -103,11 +103,15 @@ generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
 #				m = the number of microbial taxa, 
 #				abund_microbe = summed abundance of microbes, paramter = conc. parameter.
 
+<<<<<<< HEAD
 # m=100
 # abund_microbe = 1000
 # parameter=10
 
 dirichletprocess = function( m, abund_microbe, parameter){
+=======
+dirichletprocess = function(m, abund_microbe, parameter){
+>>>>>>> 531000d77ae4b1bc704f8609f6cb3d3530606066
   
   #define concentration parameter
   alpha = parameter
@@ -117,7 +121,7 @@ dirichletprocess = function( m, abund_microbe, parameter){
   
   #Make a vector for the new community we are building. 
   #Its length is determined by the length of the input distribution
-  D = vector(mode="numeric", length= length(H))
+  D = vector(mode="numeric", length = length(H))
   
   #Make a vector of probabilities from the input distribution (H). 
   #take the maximum value of this vector and assign a one to the corresponding position in D
@@ -214,11 +218,9 @@ divergence = function(comm1, comm2, method2){
   return(out)
 }
 
-#changed from mode, because that was the name of an arithmatic function
-# mode1 = "smart"
-# sensitivity = 5
-# distancemetric = "bray"
-model = function(sandbox,mode1,sensitivity, distancemetric){
+
+
+model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
   running = TRUE
   require("MCMCpack")
   #clearing output list(holds mean divergence)
@@ -228,8 +230,9 @@ model = function(sandbox,mode1,sensitivity, distancemetric){
   counter = 0
   endstep = NA
   #if we aren't doing it the smart way, set the endstep to the max plotpoints
-  if(mode1 == "normal"){endstep = max(plotpoints)}
-  
+  if(mode1 == "normal"){
+    endstep = max(plotpoints)
+  }
   while(k<z && running == TRUE){
     sandbox = replacement(sandbox) 
     k=k+1
@@ -241,22 +244,35 @@ model = function(sandbox,mode1,sensitivity, distancemetric){
         for(j in 1:length(sandbox)){
           if(i != j){
             div[m] = divergence(sandbox[[i]],sandbox[[j]], as.character(distancemetric))
-            
+            m=m+1
             #First if statement resets the counter to zero if we totally diverged, then converged
-            if(div[m] != 1 && counter > 1){
+            if(div[m-1] != 1 && counter > 1){
               counter = 0
-            }else if(as.character(mode1) == "smart" && div[m] == 1){
+            }
+            else if(as.character(mode1) == "smart" && div[m-1] == 1){
               #iterate the counter if we have reached total divergence. 
               counter = 1 + counter
               #run until we hit sensitivity (num of steps post total divergence)
               #save when total divergence happened
-              if(counter < sensitivity){next}else{
+              if(counter < sensitivity){
+                break
+                }
+              else{
                 running = FALSE
+                print(paste("autostopping at ",endstep))
                 endstep = length(div) - sensitivity
+                if(mode == "assume"){
+                  divOut[div[m]:max(plotpoints)] = 1
+                  #ADD A BUNCH OF 1S BECAUSE ASSUME
+                  running = FALSE
+                }
+                if(mode == "break"){
+                  #do nothing
+                  running = FALSE
+                }
               }
             }
             #this needs to be here, bc otherwise m gets iterated too soon and messes up the above conditional
-            m=m+1
           }
         }
       }
@@ -265,6 +281,7 @@ model = function(sandbox,mode1,sensitivity, distancemetric){
     }
   }
   return(list(divOut, sandbox, endstep))
+  #corresponds to out
 }
 
 
@@ -288,22 +305,57 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
+<<<<<<< HEAD
 plotpoints = seq(from = 0, to = 500000, by=1000)
 
+=======
+plotpoints = seq(from = 0, to = 570000, by=100)
+parameterSet=c(0.5,1,1.5)
+colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
+>>>>>>> 531000d77ae4b1bc704f8609f6cb3d3530606066
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
 
-sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter)
+
+
+colorcount=0
+#doing iterating parameters on ONE graph
+p=0
+for (p in 0:parameterSet){
+  
+  if (p == min(parameterSet)){
+    p=1
+    sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameterSet[p])
+    out = model(sandbox, "smart","assume" ,5, "bray")
+    plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"),col = colors[colorcount])
+  }else{
+    sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameterSet[p])
+    out = model(sandbox, "smart","assume" ,5, "bray")
+    points(plotpoints[2:length(plotpoints)], out[[1]],col = colors[colorcount])
+  }
+  #ERROR
+  #Error in if (MicrobeIncreasing == (1 + length(H))) { : 
+  #argument is of length zero
+  #In addition: Warning message:
+    #In max(as.vector(dir_draws)) :
+    #no non-missing arguments to max; returning -Inf
+  #colorcount = colorcount+1
+}
+#ERROR UNEXPECTED } in }
+
+
+#sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter)
 #sandbox = generateDiff(individuals, microbes, communities, abund_microbe, iterations, parameter)
 
 #for single community data, can output dataframe thus
 #write.csv(file="sandbox_out.csv", data.frame(matrix(unlist(sandbox), nrow = length(sandbox[[1]]), byrow = T)))
 
 #save original communities
-sandbox_original = sandbox
+#sandbox_original = sandbox
 
 #save communities post running model
+<<<<<<< HEAD
 out = model(sandbox, "normal" ,5, "bray")
 
 #plot divergence versus time
@@ -318,6 +370,14 @@ cols = c("black", "blue", "green", "orange", "red")
 
 #make empty plot, note the ylim are pretty important to avoid just getting what looks like a straight line
 out = list()
+=======
+#out = model(sandbox, "smart","assume" ,5, "bray")
+
+#plot divergence versus time
+#plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
+
+#adding output text
+>>>>>>> 531000d77ae4b1bc704f8609f6cb3d3530606066
 
 for(i in 1:length(params)){
 sandbox = generateSame(individuals, microbes, communities, abund_microbe, params[i])
