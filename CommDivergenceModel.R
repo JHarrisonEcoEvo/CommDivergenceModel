@@ -12,7 +12,9 @@
 #focus D parameter, and number of microbes
 #lookinto plotting
 
-
+#------------------------------------------#
+#-----BOILERPLATE FOR LOADING PACKAGES-----#
+#------------------------------------------#
 
 # install.packages("MCMCpack")
 # install.packages("ecodist")
@@ -296,7 +298,7 @@ abund_microbe = 10000
 parameter = 3
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 570000, by=100)
+plotpoints = seq(from = 0, to = 5700, by=100)
 parameterSet=c(0.5,1,1.5)
 colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
 #---------------------------------------#
@@ -308,28 +310,23 @@ colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblu
 colorcount=0
 #doing iterating parameters on ONE graph
 p=0
-for (p in 0:parameterSet){
-  
-  if (p == min(parameterSet)){
-    p=1
-    sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameterSet[p])
-    out = model(sandbox, "smart","assume" ,5, "bray")
-    plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"),col = colors[colorcount])
-  }else{
-    sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameterSet[p])
-    out = model(sandbox, "smart","assume" ,5, "bray")
-    points(plotpoints[2:length(plotpoints)], out[[1]],col = colors[colorcount])
-  }
-  #ERROR
-  #Error in if (MicrobeIncreasing == (1 + length(H))) { : 
-  #argument is of length zero
-  #In addition: Warning message:
-    #In max(as.vector(dir_draws)) :
-    #no non-missing arguments to max; returning -Inf
-  #colorcount = colorcount+1
+#----------------------------------#
+#-----BOILERPLATE FOR PLOTTING-----#
+#----------------------------------#
+plot.new()
+axis(1)
+axis(2)
+title(xlab="Time Steps")
+title(ylab="Divergence")
+plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1))
+box()
+for (p in 1:length(parameterSet)){
+  colorcount = colorcount + 1
+  sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameterSet[p])
+  out = model(sandbox, "smart","assume" ,5, "bray")
+  print(paste("Finished model ",p," with parameter ", parameterSet[p]))
+  points(plotpoints[2:length(plotpoints)], out[[1]],col = "red")
 }
-#ERROR UNEXPECTED } in }
-
 
 #sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter)
 #sandbox = generateDiff(individuals, microbes, communities, abund_microbe, iterations, parameter)
