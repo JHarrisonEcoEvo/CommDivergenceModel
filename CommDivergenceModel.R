@@ -175,7 +175,7 @@ replacement = function(community){
   replaced_comm=round(runif(1, 1, length(community)))
   
   #choose an individual at random to replace
-  replaced=round(runif(1, 1,individuals))
+  replaced=round(runif(1, 1,length(community[[replaced_comm]])))
   
   #Replace individual in community with zeros to facilitate summing at next step
   community[[replaced_comm]][[replaced]] = rep(0,length(community[[replaced_comm]][[replaced]]))			
@@ -195,9 +195,9 @@ replacement = function(community){
 #inputs are lists of lists
 
 #for debugging
- # comm1 = sandbox[[1]]
- # comm2 = sandbox[[2]]
- # method2 = "bray"
+# comm1 = sandbox[[1]]
+# comm2 = sandbox[[2]]
+# method2 = "bray"
 
 divergence = function(comm1, comm2, method2){
   
@@ -231,11 +231,10 @@ model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
   if(mode1 == "normal"){
     endstep = max(plotpoints)
   }
-  while(k<z && running == TRUE){
+  while(k<=z && running == TRUE){
     sandbox = replacement(sandbox) 
-    k=k+1
-    print(k)
     if (k %in% plotpoints){  	
+      print(paste("Sampling Divergence at Step ",k,"/",max(plotpoints)))
       div=NA
       m=1
       for(i in 1:length(sandbox)){
@@ -254,7 +253,7 @@ model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
               #save when total divergence happened
               if(counter < sensitivity){
                 break
-                }
+              }
               else{
                 running = FALSE
                 print(paste("autostopping at ",endstep))
@@ -277,6 +276,7 @@ model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
       #outputs average divergence in ascending order
       divOut[length(divOut)+1] = mean(div)
     }
+    k=k+1
   }
   return(list(divOut, sandbox, endstep))
   #corresponds to out
@@ -303,8 +303,10 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 5700, by=100)
-parameterSet=c(0.5,1,1.5)
+plotpoints = seq(from = 0, to = 50, by=10)
+parameterSet=c(1,10,100,500)
+indiv = c(10,100,1000)
+microbes = c(100,500,1000)
 colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
@@ -315,62 +317,38 @@ colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblu
 colorcount=0
 #doing iterating parameters on ONE graph
 p=0
-#----------------------------------#
-#-----BOILERPLATE FOR PLOTTING-----#
-#----------------------------------#
-plot.new()
-axis(1)
-axis(2)
-title(xlab="Time Steps")
-title(ylab="Divergence")
-plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1))
-box()
-for (p in 1:length(parameterSet)){
-  colorcount = colorcount + 1
-  sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameterSet[p])
-  out = model(sandbox, "smart","assume" ,5, "bray")
-  print(paste("Finished model ",p," with parameter ", parameterSet[p]))
-  points(plotpoints[2:length(plotpoints)], out[[1]],col = "red")
-}
+#-------------------------------------#
+#----GRAPHING/SIMULATION OF MODEL-----#
+#-------------------------------------#
 
-#sandbox = generateSame(individuals, microbes, communities, abund_microbe, parameter)
-#sandbox = generateDiff(individuals, microbes, communities, abund_microbe, iterations, parameter)
-
-#for single community data, can output dataframe thus
-#write.csv(file="sandbox_out.csv", data.frame(matrix(unlist(sandbox), nrow = length(sandbox[[1]]), byrow = T)))
-
-#save original communities
-#sandbox_original = sandbox
-
-#save communities post running model
-
-out = model(sandbox, "normal" ,5, "bray")
-
-#plot divergence versus time
-plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"), type="s")
-
-
-#plot for several parameter values
-
-#choose parameters and colors
-params=c(0.5,5,10,30,100)
 cols = c("black", "blue", "green", "orange", "red")
-
-#make empty plot, note the ylim are pretty important to avoid just getting what looks like a straight line
-out = list()
-
-for(i in 1:length(params)){
-sandbox = generateSame(individuals, microbes, communities, abund_microbe, params[i])
-out[[i]] = model(sandbox, "normal" ,5, "bray")
+par(mfrow=c(length(indiv),length(microbes)))
+for(j in 1:length(microbes)){
+  for(k in 1:length(indiv)){
+    #making new plot for the parameter changing
+    plot.new()
+    plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1), xaxt="n")
+    title(main=paste("Individuals ", indiv[[k]], "Microbes ", microbes[[j]]),xlab="Time Steps", ylab="Divergence")
+    box()
+    axis(1)
+    axis(2, at = plotpoints, labels = plotpoints)
+    for (p in 1:length(parameterSet)){
+      colorcount = colorcount + 1
+      sandbox = generateSame(indiv[[k]], microbes[[j]], communities, abund_microbe, parameterSet[p])
+      out = model(sandbox, "smart","assume" ,5, "bray")
+      print(paste("Finished model with individuals ", indiv[[k]]," microbes ", microbes[[j]], " parameter ", parameterSet[p]))
+      lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(cols[[p]]),type = "s")
+    }
+  }
 }
+#think about Rcolorbrewer
 
-plot(NULL, xlim=c(0,max(plotpoints)), ylim=c(0.85,1), ylab="Divergence", xlab="Time step")
+#plots to make
 
-k=1
-for(i in 1:length(params)){
-  lines(plotpoints[2:length(plotpoints)], out[[i]][[1]], ylab="Divergence", xlab = paste("Time steps"), type="s", col = cols[k])
-  k=k+1
-}
+#par(mfrow=c(2,3))
+#hist(sandbox[[2]][[2]], col = "red") #0.5
+#hist(sandbox[[1]][[1]])
+
 # pdf(file="~/Desktop/plotname.pdf", width=5, height=5)
 # 
 # plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
