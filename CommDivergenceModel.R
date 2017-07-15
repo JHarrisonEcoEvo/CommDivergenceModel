@@ -303,7 +303,7 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 50, by=10)
+plotpoints = seq(from = 0, to = 600000, by=10000)
 parameterSet=c(1,10,100,500)
 indiv = c(10,100,1000)
 microbes = c(100,500,1000)
@@ -320,7 +320,7 @@ p=0
 #-------------------------------------#
 #----GRAPHING/SIMULATION OF MODEL-----#
 #-------------------------------------#
-
+pdf(file="Output.pdf", width=8.5, height=11)
 cols = c("black", "blue", "green", "orange", "red")
 par(mfrow=c(length(indiv),length(microbes)))
 for(j in 1:length(microbes)){
@@ -341,6 +341,7 @@ for(j in 1:length(microbes)){
     }
   }
 }
+dev.off()
 #think about Rcolorbrewer
 
 #plots to make
