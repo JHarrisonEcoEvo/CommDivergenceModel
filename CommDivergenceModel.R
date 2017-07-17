@@ -1,16 +1,3 @@
-#try modeling real data using a D. process...to extract alpha parameter
-#figure out how to fit this, and get parameter....
-
-#Josh
-#run model forever to make sure smart function works
-#generate diff - should we pursue?
-#think about adding dispersal
-
-
-#David
-#make a multi-panel plot for model output using varying initial parameters (including the DIrichlet parameter)
-#focus D parameter, and number of microbes
-#lookinto plotting
 
 #------------------------------------------#
 #-----BOILERPLATE FOR LOADING PACKAGES-----#
