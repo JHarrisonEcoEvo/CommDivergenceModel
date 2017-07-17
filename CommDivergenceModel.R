@@ -17,9 +17,6 @@ options(scipen = 99)
 #Stuff to revisit when all said and done and make sure we like
 #1. the divergence function computes divergences on summed abundances for communities, not an average for all pairwise distances between individuals
 #this may be ideal, but it is worth thinking about more.
-#2. We should think more about the zero inflated Poisson used for H in the Dirichlet process. 
-
-
 
 #--------------------------------#
 #-----BIG BLOCK OF FUNCTIONS-----#
@@ -29,12 +26,14 @@ options(scipen = 99)
 #functions to generate communities using a Dirichlet process. Parameters are:
 # 	indiv =  number of individuals in each community, 
 # 	m = number of microbe taxa in each individual
-#	numcom = the number of communities in total
-#	abund_microbe =the maximum abundance of a microbe
-#	parameter = clustering parameter for Dirichlet process
+#	  numcom = the number of communities in total
+# 	abund_microbe =the maximum abundance of a microbe
+#	  parameter = clustering parameter for Dirichlet process
 
 
-#generate with identical values for all individuals in all communities
+#GenerateSame makes a series of communities (k locations/sites/communities)
+#each with n individuals. Individuals within a community start with the same microbial assemblage.
+#But, communities differ.
 
 #for debugging
 # m = 5
@@ -44,57 +43,45 @@ generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
   x = list()
   y = list()
   
-  #outside loop uses a zero-inflated Poisson to build a probability distribution sampled by the Dirichlet process
-  #inside loops call the Dirichlet process, and then assign it to all individuals in a community y, which is a list element in x the meta-community
-  
   for(j in 1:numcom){
-    
-    #pstr0 is the probability of a structural zero, so higher numbers result in sparser data
-    # hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
-    
     Hout = 	dirichletprocess(microbes, abund_microbe, parameter)
     
     for(i in 1:indiv){
       y[[i]] = Hout
     }
-    
     #assign new community to a list element in the meta-community
     x[[j]] = y
-    
   }
   return(x)
 }
 
+#GenerateDiff makes a series of communities (k locations/sites/communities)
+#each with n individuals. Individuals within a community start with DIFFERENT microbial assemblage.
+#And, communities differ.
+generateDiff = function(indiv, microbes, numcom, abund_microbe,parameter){
+  x = list()
+  y = list()
+  for(j in 1:numcom){
+    for(i in 1:indiv){
+      y[[i]] = dirichletprocess(microbes, abund_microbe, parameter)
+    }
+    #assign new community to a list element in the meta-community
+    x[[j]] = y
+  }
+  return(x)
+}
 
-# generateDiff = function(indiv, m, numcom, abund_microbe,iterations,parameter){
-#   x = list()
-#   y = list()
-#   for(j in 1:numcom){
-#     for(i in 1:indiv){
-#       hostzero = round(rdirichlet(1, rzipois(m, lambda = 1, pstr0 = .5))*(abund_microbe))
-#       
-#       for(k in iterations){
-#         Hout = 	dirichletprocess(hostzero,parameter)
-#         hostzero=Hout
-#       }	
-#       y[[i]] = Hout
-#     }
-#     x[[j]] = y	 
-#   }
-#   return(x)
-# }
-
-
+############################################################################
 #Function to build microbial communities using a Dirichlet process
 #inspired by this article (https://en.wikipedia.org/wiki/Dirichlet_process)
+############################################################################
 
 #parameters inherited from the generateSame function are:
 #				m = the number of microbial taxa, 
 #				abund_microbe = summed abundance of microbes, paramter = conc. parameter.
-
-# m=100
-# abund_microbe = 1000
-# parameter=10
+#       m=100
+#       abund_microbe = 1000
+#       parameter=10
 
 dirichletprocess = function( m, abund_microbe, parameter){
   
@@ -177,7 +164,8 @@ replacement = function(community){
 }
 
 #Function to compute pairwise divergence between two communities.
-#IMPORTANT: this sums abundances across individuals from each community, it does not compute all possible pairwise differences and extract an average
+#IMPORTANT: this sums abundances across individuals from each community, 
+#it does not compute all possible pairwise differences and extract an average
 
 #inputs are lists of lists
 
@@ -203,8 +191,9 @@ divergence = function(comm1, comm2, method2){
   return(out)
 }
 
-
-
+#######################################################################
+#RUN MODEL. This wrapper function incorporates all the above functions
+#######################################################################
 model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
   running = TRUE
   require("MCMCpack")
@@ -256,7 +245,6 @@ model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
                 }
               }
             }
-            #this needs to be here, bc otherwise m gets iterated too soon and messes up the above conditional
           }
         }
       }
@@ -290,7 +278,7 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 600000, by=10000)
+plotpoints = seq(from = 0, to = 60000, by=1000)
 parameterSet=c(1,10,100,500)
 indiv = c(10,100,1000)
 microbes = c(100,500,1000)
@@ -298,8 +286,6 @@ colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblu
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
-
-
 
 colorcount=0
 #doing iterating parameters on ONE graph
@@ -323,22 +309,9 @@ for(j in 1:length(microbes)){
       colorcount = colorcount + 1
       sandbox = generateSame(indiv[[k]], microbes[[j]], communities, abund_microbe, parameterSet[p])
       out = model(sandbox, "smart","assume" ,5, "bray")
-      print(paste("Finished model with individuals ", indiv[[k]]," microbes ", microbes[[j]], " parameter ", parameterSet[p]))
+      print(paste("Finished model with individuals: ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
       lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(cols[[p]]),type = "s")
     }
   }
 }
 dev.off()
-#think about Rcolorbrewer
-
-#plots to make
-
-#par(mfrow=c(2,3))
-#hist(sandbox[[2]][[2]], col = "red") #0.5
-#hist(sandbox[[1]][[1]])
-
-# pdf(file="~/Desktop/plotname.pdf", width=5, height=5)
-# 
-# plot(plotpoints[2:length(plotpoints)], out[[1]], ylab="Divergence", xlab = paste("Time steps"))
-# 
-# dev.off()
