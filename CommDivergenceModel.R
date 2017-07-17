@@ -278,7 +278,7 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 200000, by=1000)
+plotpoints = seq(from = 0, to = 200, by=20)
 parameterSet=c(1,10,100,300, 500, 1000, 2000)
 indiv = c(10,20,50)
 microbes = c(50,200,500)
@@ -294,13 +294,13 @@ p=0
 #----GRAPHING/SIMULATION OF MODEL-----#
 #-------------------------------------#
 pdf(file="Output.pdf", width=8.5, height=11)
-cols = c("black", "blue", "green", "orange", "red")
+cols = c("black", "blue", "green", "orange", "red", "cadetblue")
 par(mfrow=c(length(indiv),length(microbes)))
 for(j in 1:length(microbes)){
   for(k in 1:length(indiv)){
     #making new plot for the parameter changing
     plot.new()
-    plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1), xaxt="n")
+    plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1), xaxt="n", yaxt="n")
     title(main=paste("Individuals ", indiv[[k]], "Microbes ", microbes[[j]]),xlab="Time Steps", ylab="Divergence")
     box()
     axis(1, at = c(0,1), labels=c(0,1))
@@ -310,7 +310,7 @@ for(j in 1:length(microbes)){
       sandbox = generateSame(indiv[[k]], microbes[[j]], communities, abund_microbe, parameterSet[p])
       out = model(sandbox, "smart","assume" ,5, "bray")
       print(paste("Finished model with individuals: ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
-      lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(cols[[p]]),type = "s")
+      lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(colors[[p]]),type = "s")
     }
   }
 }
