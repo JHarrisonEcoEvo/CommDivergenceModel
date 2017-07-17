@@ -278,10 +278,10 @@ abund_microbe = 10000
 parameter = 10
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 60000, by=1000)
-parameterSet=c(1,10,100,500)
-indiv = c(10,100,1000)
-microbes = c(100,500,1000)
+plotpoints = seq(from = 0, to = 200000, by=1000)
+parameterSet=c(1,10,100,300, 500, 1000, 2000)
+indiv = c(10,20,50)
+microbes = c(50,200,500)
 colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
@@ -303,7 +303,7 @@ for(j in 1:length(microbes)){
     plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1), xaxt="n")
     title(main=paste("Individuals ", indiv[[k]], "Microbes ", microbes[[j]]),xlab="Time Steps", ylab="Divergence")
     box()
-    axis(1)
+    axis(1, at = c(0,1), labels=c(0,1))
     axis(2, at = plotpoints, labels = plotpoints)
     for (p in 1:length(parameterSet)){
       colorcount = colorcount + 1
