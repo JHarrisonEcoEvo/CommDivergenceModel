@@ -8,7 +8,7 @@
 # install.packages("VGAM")
 library(MCMCpack) 
 library(ecodist)
-library(VGAM)
+#library(VGAM)
 
 #setting seed to ensure consistency
 set.seed(14567)
