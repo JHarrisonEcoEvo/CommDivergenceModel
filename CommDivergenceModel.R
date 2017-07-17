@@ -310,7 +310,7 @@ for(j in 1:length(microbes)){
       sandbox = generateSame(indiv[[k]], microbes[[j]], communities, abund_microbe, parameterSet[p])
       out = model(sandbox, "smart","assume" ,5, "bray")
       print(paste("Finished model with individuals: ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
-      lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(colors[[p]]),type = "s")
+      lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(colors[[p]]),type = "s", lwd=2)
     }
   }
 }
