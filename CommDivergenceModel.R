@@ -272,17 +272,17 @@ individuals = 100
 microbes = 1000
 
 #max amt of microbes per microbe slot 
-abund_microbe = 10000	
+abund_microbe = 1000000	
 
 #parameter for the Dirichlet function. Higher numbers create less 
 parameter = 10
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 200, by=20)
+plotpoints = seq(from = 0, to = 200000, by=1000)
 parameterSet=c(1,10,100,300, 500, 1000, 2000)
 indiv = c(10,20,50)
 microbes = c(50,200,500)
-colors = list("aquamarine","azure","bisque","blue","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
+colors = list("red","orange","green","aquamarine","blue","purple","black","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
 #---------------------------------------#
 #-----GENERATING INITIAL CONDITIONS-----#
 #---------------------------------------#
@@ -293,6 +293,8 @@ p=0
 #-------------------------------------#
 #----GRAPHING/SIMULATION OF MODEL-----#
 #-------------------------------------#
+k=1
+j=1
 pdf(file="Output.pdf", width=8.5, height=11)
 cols = c("black", "blue", "green", "orange", "red", "cadetblue")
 par(mfrow=c(length(indiv),length(microbes)))
@@ -303,8 +305,8 @@ for(j in 1:length(microbes)){
     plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1), xaxt="n", yaxt="n")
     title(main=paste("Individuals ", indiv[[k]], "Microbes ", microbes[[j]]),xlab="Time Steps", ylab="Divergence")
     box()
-    axis(1, at = c(0,1), labels=c(0,1))
-    axis(2, at = plotpoints, labels = plotpoints)
+    axis(2, at = c(0,0.5,1), labels=c(0,0.5,1))
+    axis(1, at = c(0,max(plotpoints)/2,max(plotpoints)), labels = c(0,max(plotpoints)/2,max(plotpoints)))
     for (p in 1:length(parameterSet)){
       colorcount = colorcount + 1
       sandbox = generateSame(indiv[[k]], microbes[[j]], communities, abund_microbe, parameterSet[p])
