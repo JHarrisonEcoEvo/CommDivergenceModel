@@ -272,7 +272,7 @@ individuals = 100
 microbes = 1000
 
 #max amt of microbes per microbe slot 
-abund_microbe = 1000000	
+abund_microbe = 10000	
 
 #parameter for the Dirichlet function. Higher numbers create less 
 parameter = 10
