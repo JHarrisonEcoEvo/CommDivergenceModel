@@ -1,9 +1,12 @@
+
+#need to call life history function from within model once it is made
+
 #simulate some data. 
 #Will need to use this to show users what input data should like
 #Remember to put this, or something like it, in the help file example
-age_cat = seq(0,100, by=10)
-probDeath_cat = runif(11, min = 0,max = 1)
-lifehistorytable = data.frame(age_cat, probDeath_cat)
+age_cat  <-  seq(0,100, by=10)
+probDeath_cat  <-  runif(11, min = 0,max = 1)
+lifehistorytable  <-  data.frame(age_cat, probDeath_cat)
 
 
 #--------------------------#
@@ -23,74 +26,80 @@ options(scipen = 99)
 #---------------- -------------#
 #-----High level functions-----#
 #------------------------------#
-#These call lower level functions specified below
+#These call lower level functions that are specified below
 #"model" runs the model, the highest level function
 #generateSame and generateDiff generate initial simulated communities
 #replacement - replaces individuals at appropriate time steps
 
-model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
-  running = TRUE
-  require("MCMCpack")
-  #clearing output list(holds mean divergence)
-  divOut = NULL
-  z = max(plotpoints)
-  k=0
-  counter = 0
-  endstep = NA
-  #if we aren't doing it the smart way, set the endstep to the max plotpoints
-  if(mode1 == "normal"){
-    endstep = max(plotpoints)
+model = function(commSame = TRUE, 
+                 distancemetric="bray-curtis", 
+                 numComm=10, 
+                 numIndiv=10, 
+                 numMicrobes=100, 
+                 microbeAbund=10000, 
+                 conc.par=10, 
+                 plotpoints=seq(0,1000, by=100)){
+  #Parameters are:
+  #commSame - Boolean to specify if communities should be made up of identical individuals or different individuals
+  #distancemetric - is any distance metric accepted by the distance function of ecodist
+  #numComm - number of communities
+  #numIndiv - number of individuals in each community
+  #numMicrobes - number of microbe slots per individual
+  #microbeAbund, abundance of microbes, summed across taxa
+  #conc.par - Concentration parameter
+  #plotpoints - points to calculate divergence for plotting
+
+  #vector to hold output
+  divOut  <- NA
+  divOutVar <- NA
+  #counter
+  k <- 0
+  
+  #generate initial simulated communities, of specified parameters
+  if(commSame == TRUE | missing(commSame)){
+    community <- generateSame(numIndiv, numMicrobes, numComm, microbeAbund,conc.par)
+    print("Generating meta-community using commSame == TRUE")
+    print("Individuals within a community will start with identical microbiomes, but communities will differ")
   }
-  while(k<=z && running == TRUE){
-    sandbox = replacement(sandbox) 
-    if (k %in% plotpoints){  	
-      print(paste("Sampling Divergence at Step ",k,"/",max(plotpoints)))
-      div=NA
-      m=1
-      for(i in 1:length(sandbox)){
-        for(j in 1:length(sandbox)){
-          if(i != j){
-            div[m] = divergence(sandbox[[i]],sandbox[[j]], as.character(distancemetric))
-            m=m+1
-            #First if statement resets the counter to zero if we totally diverged, then converged
-            if(div[m-1] != 1 && counter > 1){
-              counter = 0
-            }
-            else if(as.character(mode1) == "smart" && div[m-1] == 1){
-              #iterate the counter if we have reached total divergence. 
-              counter = 1 + counter
-              #run until we hit sensitivity (num of steps post total divergence)
-              #save when total divergence happened
-              if(counter < sensitivity){
-                break
-              }
-              else{
-                running = FALSE
-                print(paste("autostopping at ",endstep))
-                endstep = length(div) - sensitivity
-                if(mode == "assume"){
-                  divOut[div[m]:max(plotpoints)] = 1
-                  #ADD A BUNCH OF 1S BECAUSE ASSUME
-                  running = FALSE
-                }
-                if(mode == "break"){
-                  #do nothing
-                  running = FALSE
-                }
-              }
+  if(commSame == FALSE){
+    community <- generateDiff(numIndiv, numMicrobes, numComm, microbeAbund,conc.par)
+    print("Generating meta-community using commSame == FALSE")
+    print("Individuals within a community will start with different microbiomes")
+  }
+  
+  #run model for appropriate number of time steps
+  repeat{
+    k <- k+1
+    #replace members of communities at each iteration
+    community <- replacement(community) 
+    
+    #calculate divergence at time steps specified by plotpoints
+      if (k %in% plotpoints){ 
+        #vector to hold distance indices
+        div <- NA
+        m <- 1
+        print(paste("Sampling Divergence at Step ",k,"/",max(plotpoints)))
+        for(i in 1:length(community)){
+          for(j in 1:length(community)){
+            if(i != j){
+              #compute pairwise distance between all communities
+              div[m] <- divergence(community[[i]][[1]],community[[j]][[1]], as.character(distancemetric))
+              m  <- m+1
             }
           }
         }
+        #Calculate average pairwise distance among all communities
+        #also calculate variance in pairwise distance among communities
+        divOut[length(divOut)+1] <- mean(div)
+        divOutVar[length(divOutVar)+1] <- var(div)
       }
-      #outputs average divergence in ascending order
-      divOut[length(divOut)+1] = mean(div)
+    if (k >= max(plotpoints)){
+      return(list(divOut,divOutVar,community))
+      break
     }
-    k=k+1
   }
-  return(list(divOut, sandbox, endstep))
-  #corresponds to out
 }
-
+##########################################################
 #GenerateSame makes a series of communities (k locations/sites/communities) each with n individuals. 
 #Individuals within a community start with the same microbial assemblage, but communities differ.
 
@@ -98,7 +107,7 @@ model = function(sandbox,mode1,sensitivity,stoptype,distancemetric){
 # m = 5
 # abund_microbe
 
-generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
+generateSame <- function(indiv, microbes, numcom, abund_microbe,parameter){
   # 	indiv =  number of individuals in each community, 
   # 	m = number of microbe taxa in each individual
   #	  numcom = the number of communities in total
@@ -109,51 +118,66 @@ generateSame = function(indiv, microbes, numcom, abund_microbe,parameter){
   y = list()
   z = list()
   for(j in 1:numcom){
-    Hout = 	dirichletprocess(microbes, abund_microbe, parameter)
+    Hout <- dirichletprocess(microbes, abund_microbe, parameter)
     ages <- round(runif(indiv, min = 0,max = max(lifehistorytable[,1])))
     for(i in 1:indiv){
-      y[[i]] = Hout
+      y[[i]] <- Hout
     }
     #assign new community to a list element in the meta-community
-    x[[j]] = y
-    z[[j]] = list(x[[j]],ages)
+    x[[j]] <- y
+    z[[j]] <- list(x[[j]],ages)
   }
   return(z)
 }
-sandbox = generateSame(10, 100, 10, 10000, 3)
 
-
-#INCOMPLETEGenerateDiff makes a series of communities (k locations/sites/communities)
-#each with n individuals. 
+##########################################################
+#GenerateDiff makes a series of communities (k locations/sites/communities)each with n individuals. 
 #Individuals within a community start with DIFFERENT microbial assemblages.
-#And, communities differ.
 
-#TO DO: this does not incorporate age structuring as of yet
 generateDiff = function(indiv, microbes, numcom, abund_microbe,parameter){
   x = list()
   y = list()
+  z = list()
+
   for(j in 1:numcom){
     for(i in 1:indiv){
-      y[[i]] = dirichletprocess(microbes, abund_microbe, parameter)
+      y[[i]] <- dirichletprocess(microbes, abund_microbe, parameter)
     }
     #assign new community to a list element in the meta-community
-    x[[j]] = y
+    x[[j]] <- y
+    ages <- round(runif(indiv, min = 0,max = max(lifehistorytable[,1])))
+    z[[j]] <- list(x[[j]],ages)
   }
-  return(x)
+  return(z)
 }
 
+##########################################################
+
+#for debugging
+sandbox = generateSame(10, 100, 10, 10000, 3)
+community = sandbox
 replacement = function(community){  	
   
   #age all individuals in all comms by 1
-  for(age in 1:length(community)){
-    community[[age]][[2]] = lapply(community, FUN=function(x){x[[2]] <- x[[2]]+1})[[age]]
+  for(age in 1:numComm){
+    community[[age]][[2]] = lapply(community, FUN=function(x){x[[2]]+1})[[age]]
   }
   
-  #choose a community to replace
-  replaced_comm=round(runif(1, 1, length(community)))
+  #replace individuals in each community as a function of their age, do for all communities
+
+  #Compute probability of death for each individual in the community 
+  #sample from a binomial distribution parameterized via the input life history table
+  #make a vector of individuals that should be replaced and pass to the remainder of this function
+  dirIndex <- seq(1,numIndiv, by=1)
+  deadpool <- data.frame(dirIndex, dirOut)
   
+  ddirichlet(community[[age]][[2]],rep(1,10))
+  deadpool[,2]*lifehistorytable[1:10,2]
   #choose an individual at random to replace
-  replaced=round(runif(1, 1,length(community[[replaced_comm]])))
+  
+  rbinom(1, 1, prob = 0.5)
+  rmultinom(1, size = 10, prob = c(0.8,0.2,0.8))
+  replaced
   
   #Replace individual in community with zeros to facilitate summing at next step
   community[[replaced_comm]][[1]][[replaced]] = rep(0,length(community[[replaced_comm]][[1]][[replaced]]))			
@@ -244,10 +268,12 @@ dirichletprocess = function( m, abund_microbe, parameter){
 #it does not compute all possible pairwise differences and extract an average
 #inputs are lists of lists
 
-divergence = function(comm1, comm2, method2){
-  out = distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
+divergence <- function(comm1, comm2, method2){
+  out <- distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
   return(out)
 }
+
+
 
 #-----------------#
 #-----Testing-----#
