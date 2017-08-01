@@ -96,7 +96,7 @@ model = function(lifehistorytable,
     #calculate divergence at time steps specified by plotpoints
       if (k %in% plotpoints){ 
         #vector to hold distance indices
-        div <- NA
+        div <- NULL
         m <- 1
         print(paste("Sampling Divergence at Step ",k,"/",max(plotpoints)))
         for(i in 1:length(community)){
@@ -309,11 +309,11 @@ formatLifeTable <- function(filename){
 #-----------------#
 
 #points at which we calculate the divergence
-plotpoints = seq(from = 0, to = 200000, by=1000)
+plotpointsv = seq(0,10000, by=10000/10)
 parameterSet=c(1,10,100,300, 500, 1000, 2000)
 indiv = c(10,20,50)
 microbes = c(50,200,500)
-colors = list("red","orange","green","aquamarine","blue","purple","black","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","cyan","darkblue","darkgoldenrod","darkolivegreen")
+colors = c("cadetblue1","cadetblue4","darkolivegreen1","darkolivegreen4","indianred1","indianred4","slateblue1","slateblue2","plum1","plum4")
 colorcount=0
 p=0
 k=1
@@ -321,23 +321,21 @@ j=1
 
 
 pdf(file="Output.pdf", width=8.5, height=11)
-cols = c("black", "blue", "green", "orange", "red", "cadetblue")
 par(mfrow=c(length(indiv),length(microbes)))
 for(j in 1:length(microbes)){
   for(k in 1:length(indiv)){
     #making new plot for the parameter changing
     plot.new()
-    plot.window(xlim = c(0,max(plotpoints)), ylim = c(0,1), xaxt="n", yaxt="n")
+    plot.window(xlim = c(0,max(plotpointsv)), ylim = c(0,1), xaxt="n", yaxt="n")
     title(main=paste("Individuals ", indiv[[k]], "Microbes ", microbes[[j]]),xlab="Time Steps", ylab="Divergence")
     box()
     axis(2, at = c(0,0.5,1), labels=c(0,0.5,1))
-    axis(1, at = c(0,max(plotpoints)/2,max(plotpoints)), labels = c(0,max(plotpoints)/2,max(plotpoints)))
+    axis(1, at = c(0,max(plotpointsv)/2,max(plotpointsv)), labels = c(0,max(plotpointsv)/2,max(plotpointsv)))
     for (p in 1:length(parameterSet)){
       colorcount = colorcount + 1
-      sandbox = generateSame(indiv[[k]], microbes[[j]], communities, abund_microbe, parameterSet[p])
-      out = model(sandbox, "smart","assume" ,5, "bray")
+      out = model(dat, numIndiv = indiv[[k]], numMicrobes = microbes[[j]], microbeAbund = 100000, conc.par = parameterSet[p], timesteps = 10000)
       print(paste("Finished model with individuals: ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
-      lines(plotpoints[1:length(plotpoints)], out[[1]],col = paste(colors[[p]]),type = "s", lwd=2)
+      lines(plotpointsv[1:length(plotpointsv)], out[[1]],col = paste(colors[[p]]),type = "s", lwd=2)
     }
   }
 }
