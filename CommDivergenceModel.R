@@ -1,22 +1,28 @@
 
 #PROBLEM: the model calculates a prob of death for each integer, since the prob is across a RANGE, this means things die way more often then they should
 #I am changing a 10% chance of dying over a decade, into a 10% chance of dying every year for a decade!!!!
+# 
+# #simulate some data. 
+# #Will need to use this to show users what input data should like
+# #Remember to put this, or something like it, in the help file example. clean up first 
+# age_cat  <-  seq(0,101, by=10)
+# for(i in 1:length(age_cat)){
+#   if(i<=99){
+#   age_cat[i] <- paste(age_cat[i], "-", as.numeric(age_cat[i+1])-1, sep="")
+#   }
+# }
+# probDeath_cat  <-  runif(11, min = 0,max = 0.01)
+# lifehistorytable  <-  data.frame(as.character(age_cat), probDeath_cat)
+# lifehistorytable[,1] <- as.character(lifehistorytable[,1])
+# lifehistorytable[11,1] <- "100-102"
+# dat <-lifehistorytable
 
-#simulate some data. 
-#Will need to use this to show users what input data should like
-#Remember to put this, or something like it, in the help file example. clean up first 
-age_cat  <-  seq(0,101, by=10)
-for(i in 1:length(age_cat)){
-  if(i<=99){
-  age_cat[i] <- paste(age_cat[i], "-", as.numeric(age_cat[i+1])-1, sep="")
-  }
-}
-probDeath_cat  <-  runif(11, min = 0,max = 0.01)
-lifehistorytable  <-  data.frame(as.character(age_cat), probDeath_cat)
-lifehistorytable[,1] <- as.character(lifehistorytable[,1])
-lifehistorytable[11,1] <- "100-102"
-dat <-lifehistorytable
+#example data can be found in ./data
 
+#Annual phlox, time in days: phloxdrummondii.csv
+#human from the 2014 Social Security area population https://www.ssa.gov/oact/STATS/table4c6.html
+#humanmale.csv
+#humanfemale.csv
 #--------------------------#
 #-----LOADING PACKAGES-----#
 #--------------------------#
@@ -38,7 +44,7 @@ options(scipen = 99)
 #"model" runs the model, the highest level function
 #generateSame and generateDiff generate initial simulated communities
 #replacement - replaces individuals at appropriate time steps
-
+dat= read.csv("./data/humanfemale.csv")
 model = function(lifehistorytable, 
                  commSame = TRUE,
                  distancemetric="bray-curtis", 
@@ -85,7 +91,7 @@ model = function(lifehistorytable,
   repeat{
     k <- k+1
     #replace members of communities at each iteration
-    community <- replacement(community) 
+    community <- replacement(community, numComm, numMicrobes, numIndiv, microbeAbund) 
     
     #calculate divergence at time steps specified by plotpoints
       if (k %in% plotpoints){ 
@@ -171,7 +177,7 @@ generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
   # sandbox = generateSame(10, 100, 10, 10000, 3)
   # community = sandbox
 
-replacement = function(community){  	
+replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund){  	
   
   #age all individuals in all communities by 1
   for(l in 1:numComm){
@@ -302,21 +308,6 @@ formatLifeTable <- function(filename){
 #-----Testing-----#
 #-----------------#
 
-
-#num of communities
-communities = 10
-
-#number of individuals in each community
-individuals = 100
-
-#number of microbe slots per individual
-microbes = 1000
-
-#max amt of microbes per microbe slot 
-abund_microbe = 10000	
-
-#parameter for the Dirichlet function. Higher numbers create less 
-parameter = 10
 #points at which we calculate the divergence
 plotpoints = seq(from = 0, to = 200000, by=1000)
 parameterSet=c(1,10,100,300, 500, 1000, 2000)
@@ -327,6 +318,8 @@ colorcount=0
 p=0
 k=1
 j=1
+
+
 pdf(file="Output.pdf", width=8.5, height=11)
 cols = c("black", "blue", "green", "orange", "red", "cadetblue")
 par(mfrow=c(length(indiv),length(microbes)))
