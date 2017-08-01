@@ -1,5 +1,6 @@
 
-#need to call life history function from within model once it is made
+#PROBLEM: the model calculates a prob of death for each integer, since the prob is across a RANGE, this means things die way more often then they should
+#I am changing a 10% chance of dying over a decade, into a 10% chance of dying every year for a decade!!!!
 
 #simulate some data. 
 #Will need to use this to show users what input data should like
@@ -10,7 +11,7 @@ for(i in 1:length(age_cat)){
   age_cat[i] <- paste(age_cat[i], "-", as.numeric(age_cat[i+1])-1, sep="")
   }
 }
-probDeath_cat  <-  runif(11, min = 0,max = 1)
+probDeath_cat  <-  runif(11, min = 0,max = 0.01)
 lifehistorytable  <-  data.frame(as.character(age_cat), probDeath_cat)
 lifehistorytable[,1] <- as.character(lifehistorytable[,1])
 lifehistorytable[11,1] <- "100-102"
@@ -37,15 +38,6 @@ options(scipen = 99)
 #"model" runs the model, the highest level function
 #generateSame and generateDiff generate initial simulated communities
 #replacement - replaces individuals at appropriate time steps
-
-commSame = TRUE
-distancemetric="bray-curtis" 
-numComm=10 
-numIndiv=10 
-numMicrobes=100 
-microbeAbund=10000 
-conc.par=10 
-plotpoints=seq(0,1000, by=100)
 
 model = function(lifehistorytable, 
                  commSame = TRUE,
@@ -92,7 +84,6 @@ model = function(lifehistorytable,
   #run model for appropriate number of time steps
   repeat{
     k <- k+1
-    print(k)
     #replace members of communities at each iteration
     community <- replacement(community) 
     
@@ -163,7 +154,7 @@ generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
   z = list()
 
   for(j in 1:numComm){
-    for(i in 1:indiv){
+    for(i in 1:numIndiv){
       y[[i]] <- dirichletprocess(numMicrobes, microbeAbund, conc.par)
     }
     #assign new community to a list element in the meta-community
@@ -211,8 +202,6 @@ replacement = function(community){
     }
     replaced <- which(deadAlive == 1)
     
-    print(paste("Timestep ", k, ": replacing ", length(replaced), " individuals in community ",l, sep=""))
-    
     #Replace individual in community with zeros to facilitate summing at next step
     for(rp in replaced){
       community[[l]][[1]][[rp]] <- rep(0,numMicrobes)
@@ -220,11 +209,14 @@ replacement = function(community){
     }
     #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
     #consider how this average calculation may affect things when lots of individuals are present
-    dirichletVector = Reduce("+",community[[l]][[1]])/numIndiv
-    
-    for(rp in replaced){
-      #note that rounding can make this vector sum to < numMicrobe, but not by much
-      community[[l]][[1]][[rp]] <- as.vector(round(rdirichlet(1, dirichletVector)*(microbeAbund)))
+    if(length(replaced) < numIndiv){
+      dirichletVector = Reduce("+",community[[l]][[1]])/numIndiv
+      for(rp in replaced){
+        #note that rounding can make this vector sum to < numMicrobe, but not by much
+        community[[l]][[1]][[rp]] <- as.vector(round(rdirichlet(1, dirichletVector)*(microbeAbund)))
+      }
+    }else{
+      print("Error: all individuals in a community died. Run with more individuals and this might not happen.")
     }
   }
   return(community)
@@ -299,7 +291,9 @@ formatLifeTable <- function(filename){
     end <- as.numeric(gsub("\\d+-(\\d+)", "\\1",filename[i,1]))
     Range <- seq(start, end, by=1)
     ages <- c(ages,Range)
-    thetas <- c(thetas, rep(lifehistorytable[i,2], length(Range)))
+    #Note that here we divide the probability of death by the age range, so that the summed probability
+    #of an individual dying over a age range matches the life table
+    thetas <- c(thetas, rep(filename[i,2]/length(Range), length(Range)))
   }
   return(list(ages, thetas))
 }
