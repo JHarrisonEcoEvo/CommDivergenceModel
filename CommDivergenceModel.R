@@ -3,11 +3,18 @@
 
 #simulate some data. 
 #Will need to use this to show users what input data should like
-#Remember to put this, or something like it, in the help file example
-age_cat  <-  seq(0,100, by=10)
+#Remember to put this, or something like it, in the help file example. clean up first 
+age_cat  <-  seq(0,101, by=10)
+for(i in 1:length(age_cat)){
+  if(i<=99){
+  age_cat[i] <- paste(age_cat[i], "-", as.numeric(age_cat[i+1])-1, sep="")
+  }
+}
 probDeath_cat  <-  runif(11, min = 0,max = 1)
-lifehistorytable  <-  data.frame(age_cat, probDeath_cat)
-
+lifehistorytable  <-  data.frame(as.character(age_cat), probDeath_cat)
+lifehistorytable[,1] <- as.character(lifehistorytable[,1])
+lifehistorytable[11,1] <- "100-102"
+dat <-lifehistorytable
 
 #--------------------------#
 #-----LOADING PACKAGES-----#
@@ -31,14 +38,24 @@ options(scipen = 99)
 #generateSame and generateDiff generate initial simulated communities
 #replacement - replaces individuals at appropriate time steps
 
-model = function(commSame = TRUE, 
+commSame = TRUE
+distancemetric="bray-curtis" 
+numComm=10 
+numIndiv=10 
+numMicrobes=100 
+microbeAbund=10000 
+conc.par=10 
+plotpoints=seq(0,1000, by=100)
+
+model = function(lifehistorytable, 
+                 commSame = TRUE,
                  distancemetric="bray-curtis", 
                  numComm=10, 
                  numIndiv=10, 
                  numMicrobes=100, 
                  microbeAbund=10000, 
                  conc.par=10, 
-                 plotpoints=seq(0,1000, by=100)){
+                 timesteps = 1000){
   #Parameters are:
   #commSame - Boolean to specify if communities should be made up of identical individuals or different individuals
   #distancemetric - is any distance metric accepted by the distance function of ecodist
@@ -47,8 +64,13 @@ model = function(commSame = TRUE,
   #numMicrobes - number of microbe slots per individual
   #microbeAbund, abundance of microbes, summed across taxa
   #conc.par - Concentration parameter
-  #plotpoints - points to calculate divergence for plotting
-
+  #timesteps - how long to run model
+  
+  plotpoints=seq(0,timesteps, by=timesteps/10) # timesteps to calculate divergence for plotting
+  
+  #obtain life history data
+  agesThetas <- formatLifeTable(lifehistorytable)
+  
   #vector to hold output
   divOut  <- NA
   divOutVar <- NA
@@ -70,6 +92,7 @@ model = function(commSame = TRUE,
   #run model for appropriate number of time steps
   repeat{
     k <- k+1
+    print(k)
     #replace members of communities at each iteration
     community <- replacement(community) 
     
@@ -107,7 +130,7 @@ model = function(commSame = TRUE,
 # m = 5
 # abund_microbe
 
-generateSame <- function(indiv, microbes, numcom, abund_microbe,parameter){
+generateSame <- function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
   # 	indiv =  number of individuals in each community, 
   # 	m = number of microbe taxa in each individual
   #	  numcom = the number of communities in total
@@ -117,10 +140,10 @@ generateSame <- function(indiv, microbes, numcom, abund_microbe,parameter){
   x = list()
   y = list()
   z = list()
-  for(j in 1:numcom){
-    Hout <- dirichletprocess(microbes, abund_microbe, parameter)
-    ages <- round(runif(indiv, min = 0,max = max(lifehistorytable[,1])))
-    for(i in 1:indiv){
+  for(j in 1:numComm){
+    Hout <- dirichletprocess(numMicrobes, microbeAbund, conc.par)
+    ages <- round(runif(numIndiv, min = 0,max = max(agesThetas[[1]])))
+    for(i in 1:numIndiv){
       y[[i]] <- Hout
     }
     #assign new community to a list element in the meta-community
@@ -134,18 +157,18 @@ generateSame <- function(indiv, microbes, numcom, abund_microbe,parameter){
 #GenerateDiff makes a series of communities (k locations/sites/communities)each with n individuals. 
 #Individuals within a community start with DIFFERENT microbial assemblages.
 
-generateDiff = function(indiv, microbes, numcom, abund_microbe,parameter){
+generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
   x = list()
   y = list()
   z = list()
 
-  for(j in 1:numcom){
+  for(j in 1:numComm){
     for(i in 1:indiv){
-      y[[i]] <- dirichletprocess(microbes, abund_microbe, parameter)
+      y[[i]] <- dirichletprocess(numMicrobes, microbeAbund, conc.par)
     }
     #assign new community to a list element in the meta-community
     x[[j]] <- y
-    ages <- round(runif(indiv, min = 0,max = max(lifehistorytable[,1])))
+    ages <- round(runif(numIndiv, min = 0,max = max(agesThetas[[1]])))
     z[[j]] <- list(x[[j]],ages)
   }
   return(z)
@@ -154,44 +177,58 @@ generateDiff = function(indiv, microbes, numcom, abund_microbe,parameter){
 ##########################################################
 
 #for debugging
-sandbox = generateSame(10, 100, 10, 10000, 3)
-community = sandbox
+  # sandbox = generateSame(10, 100, 10, 10000, 3)
+  # community = sandbox
+
 replacement = function(community){  	
   
-  #age all individuals in all comms by 1
-  for(age in 1:numComm){
-    community[[age]][[2]] = lapply(community, FUN=function(x){x[[2]]+1})[[age]]
+  #age all individuals in all communities by 1
+  for(l in 1:numComm){
+    community[[l]][[2]] <-  community[[l]][[2]]+1
   }
   
   #replace individuals in each community as a function of their age, do for all communities
-
-  #Compute probability of death for each individual in the community 
-  #sample from a binomial distribution parameterized via the input life history table
-  #make a vector of individuals that should be replaced and pass to the remainder of this function
-  dirIndex <- seq(1,numIndiv, by=1)
-  deadpool <- data.frame(dirIndex, dirOut)
-  
-  ddirichlet(community[[age]][[2]],rep(1,10))
-  deadpool[,2]*lifehistorytable[1:10,2]
-  #choose an individual at random to replace
-  
-  rbinom(1, 1, prob = 0.5)
-  rmultinom(1, size = 10, prob = c(0.8,0.2,0.8))
-  replaced
-  
-  #Replace individual in community with zeros to facilitate summing at next step
-  community[[replaced_comm]][[1]][[replaced]] = rep(0,length(community[[replaced_comm]][[1]][[replaced]]))			
-  
-  #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
-  #consider how this average calculation may affect things when lots of individuals are present
-  dirichletVector = Reduce("+",community[[replaced_comm]][[1]])/individuals
-  
-  community[[replaced_comm]][[1]][[replaced]] = round(rdirichlet(1, dirichletVector)*(abund_microbe))
-  
+  for(l in 1:numComm){
+    #First, compute probability of death for each individual in the community 
+    #sample from a binomial distribution parameterized via the input life history table
+    dpcount <- 1
+    deathProb <- 1
+    for(h in community[[l]][[2]]){
+      #this conditional sets any individuals that age past the max known age to have a 100% probability of death
+      if(h >= max(agesThetas[[1]])){
+        deathProb[dpcount] <- 1
+        dpcount <- dpcount+1
+      }else{
+        deathProb[dpcount] <- agesThetas[[2]][h == agesThetas[[1]]]
+        dpcount <- dpcount+1
+      }
+    }
+    
+    #make a vector of individuals that should be replaced and pass to the remainder of this function
+    deadAlive = NA
+    for(h in 1:length(deathProb)){
+      deadAlive[h] <- rbinom(1, 1, prob = deathProb[h])
+    }
+    replaced <- which(deadAlive == 1)
+    
+    print(paste("Timestep ", k, ": replacing ", length(replaced), " individuals in community ",l, sep=""))
+    
+    #Replace individual in community with zeros to facilitate summing at next step
+    for(rp in replaced){
+      community[[l]][[1]][[rp]] <- rep(0,numMicrobes)
+      community[[l]][[2]][[rp]] <- 0 #Reset the age
+    }
+    #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
+    #consider how this average calculation may affect things when lots of individuals are present
+    dirichletVector = Reduce("+",community[[l]][[1]])/numIndiv
+    
+    for(rp in replaced){
+      #note that rounding can make this vector sum to < numMicrobe, but not by much
+      community[[l]][[1]][[rp]] <- as.vector(round(rdirichlet(1, dirichletVector)*(microbeAbund)))
+    }
+  }
   return(community)
 }
-
-
 #---------------- -------------#
 #-----Low level functions------#
 #------------------------------#
@@ -201,38 +238,17 @@ replacement = function(community){
 #inspired by this article (https://en.wikipedia.org/wiki/Dirichlet_process)
 ############################################################################
 
-dirichletprocess = function( m, abund_microbe, parameter){
-
-  #parameters inherited from the generateSame function are:
-  #				m = the number of microbial taxa, 
-  #				abund_microbe = summed abundance of microbes, paramter = conc. parameter.
-  #       m=100
-  #       abund_microbe = 1000
-  #       parameter=10
-  
-  #define concentration parameter
-  alpha = parameter
-  
-  #Make a uniform probability distribution of the same length as the number of microbes
-  H = rep(1/m, m)
-  
+dirichletprocess = function(numMicrobes, microbeAbund, conc.par){
   #Make a vector for the new community we are building. 
-  #Its length is determined by the length of the input distribution
-  D = vector(mode="numeric", length = length(H))
+  D = vector(mode="numeric", length = numMicrobes)
   
-  #Make a vector of probabilities from the input distribution (H). 
-  #take the maximum value of this vector and assign a one to the corresponding position in D
-  #This adds a one to a random microbe to start the community
-  newH  = as.vector(rdirichlet(1,H))
-  D[which(newH == max(newH))] = 1
+  #Add a one to a random microbe to start the community
+  D[round(runif(1, min=1, max = numMicrobes))] = 1
   
-  #Run the process for time specified by "abund_microbe"
-  #Abund_microbe is the maximum abundance of any given microbe.
-  #this implements the Dirichlet process on D, building the comm. for the number of steps specified by "abund_microbe"
-  
-  for(i in 1:abund_microbe){
-    newMicrobe = alpha/(alpha + i-1)
-    oldMicrobe = D/(alpha + i-1)
+  #Run the Dirichlet process for time specified by "microbeAbund"
+  for(i in 1:microbeAbund){
+    newMicrobe = conc.par/(conc.par + i-1)
+    oldMicrobe = D/(conc.par + i-1)
     
     #As a reminder, the above sum to 1, so it works for a probability distribution. 
     #sum(newMicrobe, oldMicrobe)
@@ -248,7 +264,7 @@ dirichletprocess = function( m, abund_microbe, parameter){
     #element in D that was previously 0. A new microbe is now being observed. If the element chosen is NOT
     #the last element, then we add one to a previously observed microbe
     
-    if(MicrobeIncreasing == (1+length(H))){
+    if(MicrobeIncreasing == (1+numMicrobes)){
       #this adds a one to a random microbe that was previously unobserved. But, only operates if there is a
       #prev. unobserved microbe
       if(length(which(D == 0)) > 1 ){
@@ -266,14 +282,27 @@ dirichletprocess = function( m, abund_microbe, parameter){
 #Function to compute pairwise divergence between two communities.
 #IMPORTANT: this sums abundances across individuals from each community, 
 #it does not compute all possible pairwise differences and extract an average
-#inputs are lists of lists
 
-divergence <- function(comm1, comm2, method2){
-  out <- distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=method2)
+divergence <- function(comm1, comm2, distancemetric){
+  out <- distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=distancemetric)
   return(out)
 }
 
-
+#format life history table
+#Initial format assumes two columns, the first with ranges, the second with percent dying within that range
+formatLifeTable <- function(filename){
+  #expand the range and assign the probability of death for that range to all integers
+  ages <- NULL
+  thetas <- NULL #vector of survival probabilities to go with each age
+  for(i in 1:length(filename[,1])){
+    start <- as.numeric(gsub("(\\d+)-\\d+", "\\1",filename[i,1]))
+    end <- as.numeric(gsub("\\d+-(\\d+)", "\\1",filename[i,1]))
+    Range <- seq(start, end, by=1)
+    ages <- c(ages,Range)
+    thetas <- c(thetas, rep(lifehistorytable[i,2], length(Range)))
+  }
+  return(list(ages, thetas))
+}
 
 #-----------------#
 #-----Testing-----#
