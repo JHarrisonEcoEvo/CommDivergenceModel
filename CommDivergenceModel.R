@@ -77,12 +77,12 @@ model = function(lifehistorytable,
   
   #generate initial simulated communities, of specified parameters
   if(commSame == TRUE | missing(commSame)){
-    community <- generateSame(numIndiv, numMicrobes, numComm, microbeAbund,conc.par)
+    community <- generateSame(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, agesThetas)
     print("Generating meta-community using commSame == TRUE")
     print("Individuals within a community will start with identical microbiomes, but communities will differ")
   }
   if(commSame == FALSE){
-    community <- generateDiff(numIndiv, numMicrobes, numComm, microbeAbund,conc.par)
+    community <- generateDiff(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, agesThetas)
     print("Generating meta-community using commSame == FALSE")
     print("Individuals within a community will start with different microbiomes")
   }
@@ -91,7 +91,7 @@ model = function(lifehistorytable,
   repeat{
     k <- k+1
     #replace members of communities at each iteration
-    community <- replacement(community, numComm, numMicrobes, numIndiv, microbeAbund) 
+    community <- replacement(community, numComm, numMicrobes, numIndiv, microbeAbund, agesThetas) 
     
     #calculate divergence at time steps specified by plotpoints
       if (k %in% plotpoints){ 
@@ -127,7 +127,7 @@ model = function(lifehistorytable,
 # m = 5
 # abund_microbe
 
-generateSame <- function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
+generateSame <- function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, agesThetas){
   # 	indiv =  number of individuals in each community, 
   # 	m = number of microbe taxa in each individual
   #	  numcom = the number of communities in total
@@ -154,7 +154,7 @@ generateSame <- function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
 #GenerateDiff makes a series of communities (k locations/sites/communities)each with n individuals. 
 #Individuals within a community start with DIFFERENT microbial assemblages.
 
-generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
+generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, agesThetas){
   x = list()
   y = list()
   z = list()
@@ -177,7 +177,7 @@ generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par){
   # sandbox = generateSame(10, 100, 10, 10000, 3)
   # community = sandbox
 
-replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund){  	
+replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund, agesThetas){  	
   
   #age all individuals in all communities by 1
   for(l in 1:numComm){
