@@ -233,3 +233,5 @@ lines(plotpoints,out[[1]], type = "s", col = "red")
 
 
 #use a riemann sum with column 1 of out
+drifttotal = Reduce('+',out[[1]])
+print(drifttotal)
