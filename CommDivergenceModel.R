@@ -103,7 +103,7 @@ model = function(lifehistorytable,
           for(j in 1:length(community)){
             if(i != j){
               #compute pairwise distance between all communities
-              div[m] <- divergence(community[[i]][[1]],community[[j]][[1]], as.character(distancemetric))
+              div[m] <- divergence(community, as.character(distancemetric))
               m  <- m+1
             }
           }
@@ -137,16 +137,14 @@ generateSame <- function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, 
   x = list()
   y = list()
   z = list()
-  for(j in 1:numComm){
-    Hout <- dirichletprocess(numMicrobes, microbeAbund, conc.par)
-    ages <- round(runif(numIndiv, min = 0,max = max(agesThetas[[1]])))
-    for(i in 1:numIndiv){
-      y[[i]] <- Hout
-    }
-    #assign new community to a list element in the meta-community
-    x[[j]] <- y
-    z[[j]] <- list(x[[j]],ages)
+  Hout <- dirichletprocess(numMicrobes, microbeAbund, conc.par)
+  ages <- round(runif(numIndiv, min = 0,max = max(agesThetas[[1]])))
+  for(i in 1:numIndiv){
+    y[[i]] <- Hout
   }
+  #assign new community to a list element in the meta-community
+  z[[1]] <- list(y,ages)
+  z[[2]] <- y
   return(z)
 }
 
@@ -180,50 +178,45 @@ generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, a
 replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund, agesThetas){  	
   
   #age all individuals in all communities by 1
-  for(l in 1:numComm){
-    community[[l]][[2]] <-  community[[l]][[2]]+1
-  }
+  community[[1]][[2]] <-  community[[1]][[2]]+1
   
   #replace individuals in each community as a function of their age, do for all communities
-  for(l in 1:numComm){
-    #First, compute probability of death for each individual in the community 
-    #sample from a binomial distribution parameterized via the input life history table
-    dpcount <- 1
-    deathProb <- 1
-    for(h in community[[l]][[2]]){
-      #this conditional sets any individuals that age past the max known age to have a 100% probability of death
-      if(h >= max(agesThetas[[1]])){
-        deathProb[dpcount] <- 1
-        dpcount <- dpcount+1
-      }else{
-        deathProb[dpcount] <- agesThetas[[2]][h == agesThetas[[1]]]
-        dpcount <- dpcount+1
-      }
-    }
-    
-    #make a vector of individuals that should be replaced and pass to the remainder of this function
-    deadAlive = NA
-    for(h in 1:length(deathProb)){
-      deadAlive[h] <- rbinom(1, 1, prob = deathProb[h])
-    }
-    replaced <- which(deadAlive == 1)
-    
-    #Replace individual in community with zeros to facilitate summing at next step
-    for(rp in replaced){
-      community[[l]][[1]][[rp]] <- rep(0,numMicrobes)
-      community[[l]][[2]][[rp]] <- 0 #Reset the age
-    }
-    #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
-    #consider how this average calculation may affect things when lots of individuals are present
-    if(length(replaced) < numIndiv){
-      dirichletVector = Reduce("+",community[[l]][[1]])/numIndiv
-      for(rp in replaced){
-        #note that rounding can make this vector sum to < numMicrobe, but not by much
-        community[[l]][[1]][[rp]] <- as.vector(round(rdirichlet(1, dirichletVector)*(microbeAbund)))
-      }
+  #First, compute probability of death for each individual in the community 
+  #sample from a binomial distribution parameterized via the input life history table
+  dpcount <- 1
+  deathProb <- 1
+  for(h in community[[1]][[2]]){
+    #this conditional sets any individuals that age past the max known age to have a 100% probability of death
+    if(h >= max(agesThetas[[1]])){
+      deathProb[dpcount] <- 1
+      dpcount <- dpcount+1
     }else{
-      print("Error: all individuals in a community died. Run with more individuals and this might not happen.")
+      deathProb[dpcount] <- agesThetas[[2]][h == agesThetas[[1]]]
+      dpcount <- dpcount+1
     }
+  }
+    
+  #make a vector of individuals that should be replaced and pass to the remainder of this function
+  deadAlive = NA
+  for(h in 1:length(deathProb)){
+    deadAlive[h] <- rbinom(1, 1, prob = deathProb[h])
+  }
+  replaced <- which(deadAlive == 1)
+  #Replace individual in community with zeros to facilitate summing at next step
+  for(rp in replaced){
+   community[[1]][[1]][[rp]] <- rep(0,numMicrobes)
+   community[[1]][[2]][[rp]] <- 0 #Reset the age
+  }
+  #summing function (calculate abundance of each microbe in a community and then divide by number of hosts)
+  #consider how this average calculation may affect things when lots of individuals are present
+  if(length(replaced) < numIndiv){
+    dirichletVector = Reduce("+",community[[1]][[1]])/numIndiv
+    for(rp in replaced){
+      #note that rounding can make this vector sum to < numMicrobe, but not by much
+      community[[1]][[1]][[rp]] <- as.vector(round(rdirichlet(1, dirichletVector)*(microbeAbund)))
+    }
+  }else{
+    print("Error: all individuals in a community died. Run with more individuals and this might not happen.")
   }
   return(community)
 }
@@ -281,8 +274,8 @@ dirichletprocess = function(numMicrobes, microbeAbund, conc.par){
 #IMPORTANT: this sums abundances across individuals from each community, 
 #it does not compute all possible pairwise differences and extract an average
 
-divergence <- function(comm1, comm2, distancemetric){
-  out <- distance(rbind(Reduce("+",comm1), Reduce("+",comm2)), method=distancemetric)
+divergence <- function(sandbox, distancemetric){
+  out <- distance(rbind(Reduce("+",sandbox[[1]][[1]]), Reduce("+",sandbox[[2]])), method=distancemetric)
   return(out)
 }
 
@@ -309,7 +302,7 @@ formatLifeTable <- function(filename){
 #-----------------#
 
 #points at which we calculate the divergence
-plotpointsv = seq(0,10000, by=10000/10)
+plotpointsv = seq(0,10, by=1)
 parameterSet=c(1,10,100,300, 500, 1000, 2000)
 indiv = c(10,20,50)
 microbes = c(50,200,500)
