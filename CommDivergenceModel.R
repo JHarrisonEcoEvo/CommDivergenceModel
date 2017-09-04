@@ -1,31 +1,4 @@
 
-#PROBLEM: the model calculates a prob of death for each integer, since the prob is across a RANGE, this means things die way more often then they should
-#I am changing a 10% chance of dying over a decade, into a 10% chance of dying every year for a decade!!!!
-# 
-# #simulate some data. 
-# #Will need to use this to show users what input data should like
-# #Remember to put this, or something like it, in the help file example. clean up first 
-# age_cat  <-  seq(0,101, by=10)
-# for(i in 1:length(age_cat)){
-#   if(i<=99){
-#   age_cat[i] <- paste(age_cat[i], "-", as.numeric(age_cat[i+1])-1, sep="")
-#   }
-# }
-# probDeath_cat  <-  runif(11, min = 0,max = 0.01)
-# lifehistorytable  <-  data.frame(as.character(age_cat), probDeath_cat)
-# lifehistorytable[,1] <- as.character(lifehistorytable[,1])
-# lifehistorytable[11,1] <- "100-102"
-# dat <-lifehistorytable
-
-#example data can be found in ./data
-
-#Annual phlox, time in days: phloxdrummondii.csv
-#human from the 2014 Social Security area population https://www.ssa.gov/oact/STATS/table4c6.html
-#humanmale.csv
-#humanfemale.csv
-#--------------------------#
-#-----LOADING PACKAGES-----#
-#--------------------------#
 require(MCMCpack) 
 require(ecodist)
 
@@ -33,9 +6,16 @@ require(ecodist)
 set.seed(14567)
 options(scipen = 99)
 
+#read life table data
+
+lifehistorytable = read.csv("./data/hypotheticalShortlived.csv")
+lifehistorytable = read.csv("./data/humanfemale.csv")
+
+
 #Stuff to revisit when all said and done and make sure we like
 #1. the divergence function computes divergences on summed abundances for communities, not an average for all pairwise distances between individuals
 #this may be ideal, but it is worth thinking about more.
+#Does it make sense to try and use a D. process to replace the community in a replaced individual
 
 #---------------- -------------#
 #-----High level functions-----#
@@ -44,9 +24,22 @@ options(scipen = 99)
 #"model" runs the model, the highest level function
 #generateSame and generateDiff generate initial simulated communities
 #replacement - replaces individuals at appropriate time steps
-dat= read.csv("./data/humanfemale.csv")
-model = function(lifehistorytable, 
+
+#debugging stuff, will delete when done
+# commSame = TRUE
+# distancemetric="bray-curtis"
+# numComm=2
+# numIndiv=5
+# minInd = 2
+# numMicrobes=10
+# microbeAbund=10000
+# conc.par=10
+# timesteps = 1000
+
+model <- function(lifehistorytable, 
                  commSame = TRUE,
+                 dispersal = TRUE,
+                 minInd = 8,
                  distancemetric="bray-curtis", 
                  numComm=10, 
                  numIndiv=10, 
@@ -56,7 +49,7 @@ model = function(lifehistorytable,
                  timesteps = 1000){
   #Parameters are:
   #commSame - Boolean to specify if communities should be made up of identical individuals or different individuals
-  #distancemetric - is any distance metric accepted by the distance function of ecodist
+  #distancemetric - any distance metric accepted by the distance function of ecodist
   #numComm - number of communities
   #numIndiv - number of individuals in each community
   #numMicrobes - number of microbe slots per individual
@@ -64,7 +57,9 @@ model = function(lifehistorytable,
   #conc.par - Concentration parameter
   #timesteps - how long to run model
   
-  plotpoints=seq(0,timesteps, by=timesteps/10) # timesteps to calculate divergence for plotting
+  
+  # calculate timestep to calculate divergence for plotting
+  plotpoints=seq(0,timesteps, by=timesteps/10) 
   
   #obtain life history data
   agesThetas <- formatLifeTable(lifehistorytable)
@@ -91,7 +86,12 @@ model = function(lifehistorytable,
   repeat{
     k <- k+1
     #replace members of communities at each iteration
-    community <- replacement(community, numComm, numMicrobes, numIndiv, microbeAbund, agesThetas) 
+    community <- replacement(community, numComm, numMicrobes, numIndiv, microbeAbund, agesThetas); community
+    
+    #let member(s) of communities disperse at each iteration
+    if(dispersal == TRUE){
+      community <- disperse(community,minInd)
+    }
     
     #calculate divergence at time steps specified by plotpoints
       if (k %in% plotpoints){ 
@@ -119,10 +119,11 @@ model = function(lifehistorytable,
     }
   }
 }
-##########################################################
-#GenerateSame makes a series of communities (k locations/sites/communities) each with n individuals. 
-#Individuals within a community start with the same microbial assemblage, but communities differ.
 
+######################################################################################################
+#GenerateSame makes a series of communities (k locations/sites/communities) each with n individuals. #
+#Individuals within a community start with the same microbial assemblage, but communities differ.    #
+######################################################################################################
 #for debugging
 # m = 5
 # abund_microbe
@@ -150,9 +151,10 @@ generateSame <- function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, 
   return(z)
 }
 
-##########################################################
+##################################################################################################
 #GenerateDiff makes a series of communities (k locations/sites/communities)each with n individuals. 
 #Individuals within a community start with DIFFERENT microbial assemblages.
+##################################################################################################
 
 generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, agesThetas){
   x = list()
@@ -171,15 +173,16 @@ generateDiff = function(numIndiv, numMicrobes, numComm, microbeAbund,conc.par, a
   return(z)
 }
 
-##########################################################
-
+##########################################################################################
+#Replacement function - replaces individuals in each community as a function of their age#
+##########################################################################################
 #for debugging
   # sandbox = generateSame(10, 100, 10, 10000, 3)
   # community = sandbox
 
 replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund, agesThetas){  	
   
-  #age all individuals in all communities by 1
+  #increase age for all individuals in all communities by 1
   for(l in 1:numComm){
     community[[l]][[2]] <-  community[[l]][[2]]+1
   }
@@ -227,6 +230,66 @@ replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund, 
   }
   return(community)
 }
+
+#function that implements dispersal. 
+  #Assumptions: 1. individuals are more likely to disperse OUT of larger populations
+  #             2. There is a uniform probability regarding WHERE these individuals go
+  #             3. Communities don't have to be the same size obviously, but do have a minimum size
+  #             4. There is a unform prob. distribution for which indidivual in the choosen community disperses. Might be worth playing with this more.
+
+disperse <- function(community, minInd){
+  #remember that sapply returns a vector, while lapply returns a list
+  numindiv_eachComm <- sapply(community, FUN= function(community){length(community[[1]])})
+  
+  #take a deviate from a Dirichlet distribution parameterized using the number of individuals in each community.
+  #this generates higher probabilities for communities with more individuals.
+  disperseProbs <- rdirichlet(1, numindiv_eachComm)
+  #pick the largest probability. This will be the community that has the dispersing individual
+  CommWithDisperser <- which(disperseProbs == max(disperseProbs))
+  
+  #choose the destination community and individual to replace
+  destinationComm <- round(runif(1,min=1, max=length(community)))
+  
+  #make sure we actually disperse (instead of replacing an indiv. in the dispersal community)
+  if(destinationComm == CommWithDisperser){
+    repeat{
+      destinationComm <- round(runif(1,min=1, max=length(community)))
+      #test that there are enough individuals in this community. 
+      #we don't want dispersal to cause a community to go extinct eventually, so we specifiy a min. number of individuals allowable
+      if(minInd >= length(community[[CommWithDisperser]][[1]])){
+        repeat{
+          disperseProbs <- rdirichlet(1, numindiv_eachComm)
+          CommWithDisperser <- which(disperseProbs == max(disperseProbs))
+          if(minInd >= length(community[[CommWithDisperser]][[1]])){
+            break 
+          }
+        }
+      }
+      if(destinationComm != CommWithDisperser){
+        break
+      }
+    }
+  }
+  
+  #pick the actual individual within the community to disperse. This individual is choosen using a uniform prob. distribution.
+  #extending from 1 to how ever many individuals are in the community
+  disperser <- round(runif(1,min=1, max=length(community[[CommWithDisperser]][[1]])))
+    #The disperser: community[[CommWithDisperser]][[1]][[disperser]]
+  
+  #calculate 1 plus the number of individuals in the destination community, so we can append the disperser to that community
+  destIndiv <- length(community[[destinationComm]][[1]])+1
+  community[[destinationComm]][[1]][[destIndiv]] <- community[[CommWithDisperser]][[1]][[disperser]]
+  #dont forget to add its age
+  community[[destinationComm]][[2]][[destIndiv]] <- community[[CommWithDisperser]][[2]][[disperser]]
+  print(paste("Individual ", disperser, " from community ", CommWithDisperser, " is dispersing. Yay, go forth!"))
+  
+  #remove the dispersering individual from the original community
+  community[[CommWithDisperser]][[1]][[disperser]] <- NULL
+  community[[CommWithDisperser]][[2]] <- community[[CommWithDisperser]][[2]][-disperser]
+  
+  return(community)
+  }  
+
 #---------------- -------------#
 #-----Low level functions------#
 #------------------------------#
@@ -237,6 +300,10 @@ replacement = function(community, numComm, numMicrobes, numIndiv, microbeAbund, 
 ############################################################################
 
 dirichletprocess = function(numMicrobes, microbeAbund, conc.par){
+  #numMicrobes - is the number of microbial taxa
+  #microbeAbund - is the total microbial abundance
+  #conc.par - is the concentration parameter that controls the evenness of the simulated community
+  
   #Make a vector for the new community we are building. 
   D = vector(mode="numeric", length = numMicrobes)
   
@@ -247,9 +314,6 @@ dirichletprocess = function(numMicrobes, microbeAbund, conc.par){
   for(i in 1:microbeAbund){
     newMicrobe = conc.par/(conc.par + i-1)
     oldMicrobe = D/(conc.par + i-1)
-    
-    #As a reminder, the above sum to 1, so it works for a probability distribution. 
-    #sum(newMicrobe, oldMicrobe)
     
     #bind those vectors together and sample that Dirichlet distribution
     dir_draws = rdirichlet(1,append(oldMicrobe, newMicrobe))
@@ -304,15 +368,29 @@ formatLifeTable <- function(filename){
   return(list(ages, thetas))
 }
 
+
+#########
+#Testing#
+#########
+
+# #simulate a community using defaults, except for conc. parameter
+# out <- model(dat, conc.par=4)
+# 
+# #this is what community one looks like
+# #ten host individuals are present, each with 100 different possible taxa
+# out[3][[1]][[2]][[1]]
+
+
 #-----------------#
-#-----Testing-----#
+#-----Plotting-----#
 #-----------------#
 
 #points at which we calculate the divergence
 plotpointsv = seq(0,10000, by=10000/10)
-parameterSet=c(1,10,100,300, 500, 1000, 2000)
-indiv = c(10,20,50)
-microbes = c(50,200,500)
+minsize = 8
+parameterSet=c(3,30,100)
+indiv = c(50,100)
+microbes = c(50,100)
 colors = c("cadetblue1","cadetblue4","darkolivegreen1","darkolivegreen4","indianred1","indianred4","slateblue1","slateblue2","plum1","plum4")
 colorcount=0
 p=0
@@ -320,7 +398,7 @@ k=1
 j=1
 
 
-pdf(file="Output.pdf", width=8.5, height=11)
+#pdf(file="Output.pdf", width=8.5, height=11)
 par(mfrow=c(length(indiv),length(microbes)))
 for(j in 1:length(microbes)){
   for(k in 1:length(indiv)){
@@ -333,10 +411,15 @@ for(j in 1:length(microbes)){
     axis(1, at = c(0,max(plotpointsv)/2,max(plotpointsv)), labels = c(0,max(plotpointsv)/2,max(plotpointsv)))
     for (p in 1:length(parameterSet)){
       colorcount = colorcount + 1
-      out = model(dat, numIndiv = indiv[[k]], numMicrobes = microbes[[j]], microbeAbund = 100000, conc.par = parameterSet[p], timesteps = 10000)
-      print(paste("Finished model with individuals: ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
-      lines(plotpointsv[1:length(plotpointsv)], out[[1]],col = paste(colors[[p]]),type = "s", lwd=2)
+       out = model(dat, dispersal=FALSE, minInd = 8, numIndiv = indiv[[k]], numMicrobes = microbes[[j]], microbeAbund = 1000, conc.par = parameterSet[p], timesteps = 10000)
+      # print(paste("Finished model with individuals (no dispersal): ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
+       lines(plotpointsv[1:length(plotpointsv)], out[[1]],col = paste(colors[[p]]),lwd=2, lty=1)
+      # 
+      out = model(dat, dispersal=TRUE, numComm = 2, minInd = 8, numIndiv = indiv[[k]], numMicrobes = microbes[[j]], microbeAbund = 1000, conc.par = parameterSet[p], timesteps = 10000)
+      lines(plotpointsv[1:length(plotpointsv)], out[[1]],col = paste(colors[[p]]),type = "s", lwd=2, lty=3)
+      print(paste("Finished model with individuals (dispersal): ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
+
     }
   }
 }
-dev.off()
+#dev.off()
