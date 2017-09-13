@@ -44,7 +44,7 @@ options(scipen = 99)
 #"model" runs the model, the highest level function
 #generateSame and generateDiff generate initial simulated communities
 #replacement - replaces individuals at appropriate time steps
-dat= read.csv("./data/humanfemale.csv")
+
 model = function(lifehistorytable, 
                  commSame = TRUE,
                  distancemetric="bray-curtis", 
@@ -312,24 +312,7 @@ p=0
 k=1
 j=1
 
+#Importing .CSV files
+dat = c(read.csv("./data/tuftedtitmouse.csv"),read.csv("./data/turtle.csv"),read.csv("./data/humanmale.csv")
 
-pdf(file="Output.pdf", width=8.5, height=11)
-par(mfrow=c(length(indiv),length(microbes)))
-for(j in 1:length(microbes)){
-  for(k in 1:length(indiv)){
-    #making new plot for the parameter changing
-    plot.new()
-    plot.window(xlim = c(0,max(plotpointsv)), ylim = c(0,1), xaxt="n", yaxt="n")
-    title(main=paste("Individuals ", indiv[[k]], "Microbes ", microbes[[j]]),xlab="Time Steps", ylab="Divergence")
-    box()
-    axis(2, at = c(0,0.5,1), labels=c(0,0.5,1))
-    axis(1, at = c(0,max(plotpointsv)/2,max(plotpointsv)), labels = c(0,max(plotpointsv)/2,max(plotpointsv)))
-    for (p in 1:length(parameterSet)){
-      colorcount = colorcount + 1
-      out = model(dat, numIndiv = indiv[[k]], numMicrobes = microbes[[j]], microbeAbund = 100000, conc.par = parameterSet[p], timesteps = 10000)
-      print(paste("Finished model with individuals: ", indiv[[k]],", microbes: ", microbes[[j]], ", parameter: ", parameterSet[p]))
-      lines(plotpointsv[1:length(plotpointsv)], out[[1]],col = paste(colors[[p]]),type = "s", lwd=2)
-    }
-  }
-}
-dev.off()
+out = model(dat[1], numIndiv = 10, numMicrobes = 100, microbeAbund = 100000, conc.par = 10, timesteps = 1000)
