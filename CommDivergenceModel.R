@@ -311,8 +311,11 @@ colorcount=0
 p=0
 k=1
 j=1
-
 #Importing .CSV files
-dat = c(read.csv("./data/tuftedtitmouse.csv"),read.csv("./data/turtle.csv"),read.csv("./data/humanmale.csv")
-
-out = model(dat[1], numIndiv = 10, numMicrobes = 100, microbeAbund = 100000, conc.par = 10, timesteps = 1000)
+dat = c(read.csv("./data/tuftedtitmouse.csv"),read.csv("./data/turtle.csv"),read.csv("./data/humanmale.csv"))
+out = model(cbind(dat[[1]], dat[[2]]), numIndiv = 10, numMicrobes = 100, microbeAbund = 100000, conc.par = 10, timesteps = 1000)
+plot.new()
+par(mfrow = c(3,1))
+plot(plotpointsv,model(cbind(dat[[1]], dat[[2]]), numIndiv = 10, numMicrobes = 100, microbeAbund = 100000, conc.par = 10, timesteps = 1000)[[1]])
+plot(plotpointsv,model(cbind(dat[[3]], dat[[4]]), numIndiv = 10, numMicrobes = 100, microbeAbund = 100000, conc.par = 10, timesteps = 1000)[[1]])
+plot(plotpointsv,model(cbind(dat[[5]], dat[[6]]), numIndiv = 10, numMicrobes = 100, microbeAbund = 100000, conc.par = 10, timesteps = 1000)[[1]])
