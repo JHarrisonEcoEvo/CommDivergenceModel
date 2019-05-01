@@ -7,6 +7,7 @@
 # install.packages("ecodist")
 # install.packages("VGAM")
 library(MCMCpack) 
+#change
 library(ecodist)
 #library(VGAM)
 
